@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabFix - Arquitectura y Relaciones Firestore (ESPOCH)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #F8FAFC;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 40px 24px 60px;
+      color: #0F172A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 1400px;
+    }
+    .header {
+      margin-bottom: 28px;
+    }
+    .badge-top {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #E0E7FF;
+      color: #3730A3;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .title {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #0F172A;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #64748B;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    /* Subcolección banner explicativo */
+    .subcoll-callout {
+      background: #EFF6FF;
+      border: 1.5px solid #BFDBFE;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 30px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .subcoll-callout-icon {
+      font-size: 28px;
+    }
+    .subcoll-callout-text h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1E3A8A;
+      margin-bottom: 4px;
+    }
+    .subcoll-callout-text p {
+      font-size: 13.5px;
+      color: #1E40AF;
+      line-height: 1.45;
+    }
+    .subcoll-callout-code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #DBEAFE;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      color: #1E3A8A;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 26px;
+    }
+    .card {
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+      border: 1.8px solid transparent;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    }
+    .card-header {
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1.2px solid transparent;
+    }
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .card-title-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .card-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748B;
+      letter-spacing: 0.6px;
+    }
+    .card-body {
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+    .field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14.5px;
+      font-weight: 500;
+      color: #1E293B;
+      padding: 2px 0;
+    }
+    .type-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 7px;
+      min-width: 90px;
+      text-align: center;
+    }
+
+    /* Tarjeta especial Subcolección */
+    .card-subcoll {
+      position: relative;
+      background-color: #F0FDF4;
+      border-color: #86EFAC;
+    }
+    .card-subcoll::before {
+      content: "↳ SUBCOLECCIÓN HIJA DE 'REPORTES'";
+      position: absolute;
+      top: 8px;
+      right: 14px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #15803D;
+      letter-spacing: 0.5px;
+    }
+
+    /* Colores por tarjeta */
+    .card-users { background-color: #FFF1F2; border-color: #FDA4AF; }
+    .card-users .card-header { background-color: #FFE4E6; border-color: #FDA4AF; }
+    .card-users .card-icon { background-color: #F43F5E; }
+    .card-users .card-title { color: #9F1239; }
+    .card-users .type-pill.t-string { background-color: #FECDD3; color: #881337; }
+    .card-users .type-pill.t-array { background-color: #FCE7F3; color: #9D174D; }
+    .card-users .type-pill.t-time { background-color: #FFE4E6; color: #BE123C; }
+
+    .card-reports { background-color: #F0F9FF; border-color: #93C5FD; }
+    .card-reports .card-header { background-color: #DBEAFE; border-color: #93C5FD; }
+    .card-reports .card-icon { background-color: #2563EB; }
+    .card-reports .card-title { color: #1E3A8A; }
+    .card-reports .type-pill.t-string { background-color: #BFDBFE; color: #1E40AF; }
+    .card-reports .type-pill.t-array { background-color: #E0E7FF; color: #3730A3; }
+    .card-reports .type-pill.t-num { background-color: #CFFAFE; color: #0E7490; }
+    .card-reports .type-pill.t-bool { background-color: #DBEAFE; color: #1D4ED8; }
+    .card-reports .type-pill.t-time { background-color: #DBEAFE; color: #1D4ED8; }
+
+    .card-subcoll .card-header { background-color: #DCFCE7; border-color: #86EFAC; }
+    .card-subcoll .card-icon { background-color: #16A34A; }
+    .card-subcoll .card-title { color: #14532D; }
+    .card-subcoll .type-pill.t-string { background-color: #BBF7D0; color: #166534; }
+    .card-subcoll .type-pill.t-bool { background-color: #DCFCE7; color: #15803D; }
+    .card-subcoll .type-pill.t-time { background-color: #DCFCE7; color: #15803D; }
+
+    .card-notifs { background-color: #FFFBEB; border-color: #FDE047; }
+    .card-notifs .card-header { background-color: #FEF9C3; border-color: #FDE047; }
+    .card-notifs .card-icon { background-color: #D97706; }
+    .card-notifs .card-title { color: #78350F; }
+    .card-notifs .type-pill.t-string { background-color: #FDE68A; color: #92400E; }
+    .card-notifs .type-pill.t-bool { background-color: #FEF08A; color: #854D0E; }
+    .card-notifs .type-pill.t-time { background-color: #FEF08A; color: #B45309; }
+
+    .card-labs { background-color: #F5F3FF; border-color: #C4B5FD; }
+    .card-labs .card-header { background-color: #EDE9FE; border-color: #C4B5FD; }
+    .card-labs .card-icon { background-color: #7C3AED; }
+    .card-labs .card-title { color: #4C1D95; }
+    .card-labs .type-pill.t-string { background-color: #DDD6FE; color: #5B21B6; }
+    .card-labs .type-pill.t-num { background-color: #EDE9FE; color: #6D28D9; }
+    .card-labs .type-pill.t-bool { background-color: #EDE9FE; color: #6D28D9; }
+    .card-labs .type-pill.t-time { background-color: #EDE9FE; color: #7C3AED; }
+
+    .card-resources { background-color: #FFF1F2; border-color: #FCA5A5; }
+    .card-resources .card-header { background-color: #FEE2E2; border-color: #FCA5A5; }
+    .card-resources .card-icon { background-color: #EF4444; }
+    .card-resources .card-title { color: #991B1B; }
+    .card-resources .type-pill.t-string { background-color: #FECACA; color: #991B1B; }
+    .card-resources .type-pill.t-time { background-color: #FEE2E2; color: #DC2626; }
+
+    /* Sección de Relaciones Explicativa */
+    .relations-section {
+      margin-top: 48px;
+      background: white;
+      border: 1px solid #E2E8F0;
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+    }
+    .relations-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #0F172A;
+    }
+    .relations-desc {
+      font-size: 14.5px;
+      color: #64748B;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .relations-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .relations-table th {
+      background: #F8FAFC;
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 2px solid #E2E8F0;
+    }
+    .relations-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #F1F5F9;
+      color: #334155;
+    }
+    .badge-rel {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: #E2E8F0;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <span class="badge-top">Cloud Firestore · ESPOCH</span>
+      <div class="title">LabFix · Modelo de Datos y Colecciones</div>
+      <div class="subtitle">Estructura NoSQL, Colecciones Raíz, Subcolecciones de Chat y Esquema de Relaciones</div>
+    </div>
+
+    <!-- Banner explicativo de la Subcolección messages -->
+    <div class="subcoll-callout">
+      <div class="subcoll-callout-icon">💡</div>
+      <div class="subcoll-callout-text">
+        <h4>¿Cómo funciona la colección de mensajes con los técnicos?</h4>
+        <p>
+          En Cloud Firestore, los mensajes no están en una tabla suelta, sino como una <strong>Subcolección Anidada</strong> en cada ticket: <span class="subcoll-callout-code">reports/{idReporte}/messages/{idMensaje}</span>. De este modo, cada reporte tiene su propio hilo de conversación en tiempo real, garantizando privacidad, máxima velocidad de carga y eliminación automática si el reporte se depura.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- 1. usuarios -->
+      <div class="card card-users">
+        <div class="card-header">
+          <div class="card-icon">👤</div>
+          <div class="card-title-wrap">
+            <span class="card-title">usuarios</span>
+            <span class="card-tag">(users)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>uid</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>nombre / apellidos</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>correo</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>rol (STUDENT/TECH/ADMIN)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>codigoEstudiante</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>carrera / departamento</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>assignedLabs (técnicos)</span><span class="type-pill t-array">array</span></div>
+          <div class="field-row"><span>fotoUrl</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>creadoEn</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- 2. reportes -->
+      <div class="card card-reports">
+        <div class="card-header">
+          <div class="card-icon">📋</div>
+          <div class="card-title-wrap">
+            <span class="card-title">reportes</span>
+            <span class="card-tag">(reports)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>reportId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>userId / createdBy</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>assignedTechId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>laboratorio</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>equipmentId / machine</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>categoria</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>urgencia (Alta/Media/Baja)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>estado (Pendiente/Revisión)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>imageUrls (ImgBB)</span><span class="type-pill t-array">array</span></div>
+          <div class="field-row"><span>hasEvidence</span><span class="type-pill t-bool">boolean</span></div>
+          <div class="field-row"><span>latitud / longitud (GPS)</span><span class="type-pill t-num">number</span></div>
+          <div class="field-row"><span>creadoEn / actualizadoEn</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- 3. mensajes (SUBCOLECCIÓN HIJA) -->
+      <div class="card card-subcoll">
+        <div class="card-header">
+          <div class="card-icon">💬</div>
+          <div class="card-title-wrap">
+            <span class="card-title">mensajes</span>
+            <span class="card-tag">(messages)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>idMensaje</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>senderId (UID autor)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>author (Nombre / Rol)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>messageText / body</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>isTechnician</span><span class="type-pill t-bool">boolean</span></div>
+          <div class="field-row"><span>sentAt / createdAt</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- 4. notificaciones -->
+      <div class="card card-notifs">
+        <div class="card-header">
+          <div class="card-icon">🔔</div>
+          <div class="card-title-wrap">
+            <span class="card-title">notificaciones</span>
+            <span class="card-tag">(notifications)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>notificationId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>recipientId (UID o TECH)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>titulo</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>mensaje / body</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>reportId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>isRead</span><span class="type-pill t-bool">boolean</span></div>
+          <div class="field-row"><span>creadoEn</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- 5. laboratorios -->
+      <div class="card card-labs">
+        <div class="card-header">
+          <div class="card-icon">🏢</div>
+          <div class="card-title-wrap">
+            <span class="card-title">laboratorios</span>
+            <span class="card-tag">(laboratories / labs)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>id</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>name</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>building (FIE/Básicas)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>location (Aula)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>capacity</span><span class="type-pill t-num">number</span></div>
+          <div class="field-row"><span>technicianId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>availability</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>active</span><span class="type-pill t-bool">boolean</span></div>
+          <div class="field-row"><span>creadoEn</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- 6. recursos -->
+      <div class="card card-resources">
+        <div class="card-header">
+          <div class="card-icon">🖥️</div>
+          <div class="card-title-wrap">
+            <span class="card-title">recursos</span>
+            <span class="card-tag">(resources)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row"><span>resourceId</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>code (PC-12 / SW-03)</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>type</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>brand</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>specs</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>laboratory</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>state</span><span class="type-pill t-string">string</span></div>
+          <div class="field-row"><span>ultimoMantenimiento</span><span class="type-pill t-time">timestamp</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de Relaciones -->
+    <div class="relations-section">
+      <div class="relations-title">Diagrama de Relaciones y Enlace entre Colecciones</div>
+      <div class="relations-desc">
+        A diferencia de bases de datos SQL relacionales (claves foráneas fijas), Firestore utiliza referencias por identificador (ID) y contención jerárquica (Subcolecciones). A continuación se detalla cómo se comunican las colecciones de LabFix:
+      </div>
+
+      <table class="relations-table">
+        <thead>
+          <tr>
+            <th>Origen</th>
+            <th>Relación</th>
+            <th>Destino</th>
+            <th>Campo de Enlace</th>
+            <th>Descripción Operativa</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>reportes</strong></td>
+            <td><span class="badge-rel">1 a Muchos (Jerárquico)</span></td>
+            <td><strong>mensajes</strong></td>
+            <td><span class="subcoll-callout-code">reports/{id}/messages</span></td>
+            <td>Subcolección física: cada reporte tiene su chat privado entre estudiante y técnico.</td>
+          </tr>
+          <tr>
+            <td><strong>usuarios</strong></td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>reportes</strong></td>
+            <td><code>reportes.userId = usuarios.uid</code></td>
+            <td>Un estudiante crea muchas incidencias en el campus.</td>
+          </tr>
+          <tr>
+            <td><strong>usuarios</strong> (Técnicos)</td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>reportes</strong></td>
+            <td><code>reportes.assignedTechId = usuarios.uid</code></td>
+            <td>Un técnico atiende y resuelve múltiples reportes asignados.</td>
+          </tr>
+          <tr>
+            <td><strong>laboratorios</strong></td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>reportes</strong></td>
+            <td><code>reportes.laboratory = laboratorios.name</code></td>
+            <td>Un laboratorio registra múltiples tickets de falla física o lógica.</td>
+          </tr>
+          <tr>
+            <td><strong>reportes</strong></td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>notificaciones</strong></td>
+            <td><code>notificaciones.reportId = reportes.reportId</code></td>
+            <td>Cada cambio de estado o nuevo reporte dispara alertas push a los involucrados.</td>
+          </tr>
+          <tr>
+            <td><strong>laboratorios</strong></td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>recursos</strong></td>
+            <td><code>recursos.laboratory = laboratorios.name</code></td>
+            <td>Cada laboratorio contiene un inventario de PCs, switches y proyectores.</td>
+          </tr>
+          <tr>
+            <td><strong>laboratorios</strong></td>
+            <td><span class="badge-rel">1 a Muchos</span></td>
+            <td><strong>horarios</strong></td>
+            <td><code>schedules.labId = laboratories.id</code></td>
+            <td>Horarios y turnos de reserva para prácticas académicas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</body>
+</html>

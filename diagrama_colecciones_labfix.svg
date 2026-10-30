@@ -1,0 +1,403 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1080" width="1600" height="1080">
+  <defs>
+    <!-- Filtros de sombra suave -->
+    <filter id="card-shadow" x="-4%" y="-3%" width="108%" height="108%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.06"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+    <filter id="header-icon-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <style>
+    .bg { fill: #F8FAFC; }
+    .card-title { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; font-size: 22px; }
+    .field-name { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500; font-size: 14.5px; fill: #1E293B; }
+    .type-pill-text { font-family: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', monospace; font-weight: 600; font-size: 12px; text-anchor: middle; }
+    .sub-badge { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; font-weight: 700; fill: #64748B; letter-spacing: 0.5px; }
+  </style>
+
+  <!-- Fondo General -->
+  <rect width="1600" height="1080" class="bg" />
+
+  <!-- Título Superior Principal -->
+  <g transform="translate(60, 45)">
+    <text font-family="'Inter', sans-serif" font-weight="900" font-size="28" fill="#0F172A">LabFix · Colecciones de Firebase Firestore</text>
+    <text y="26" font-family="'Inter', sans-serif" font-weight="500" font-size="14" fill="#64748B">Estructura de Base de Datos NoSQL · Facultad de Informática y Electrónica (ESPOCH)</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 1, COL 1: usuarios (users) - ROSA                                   -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 105)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#FFF1F2" stroke="#FDA4AF" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#FFE4E6" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#FDA4AF" stroke-width="1.2"/>
+    
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#F43F5E" filter="url(#header-icon-shadow)"/>
+      <path d="M 16,10 C 13.8,10 12,11.8 12,14 C 12,16.2 13.8,18 16,18 C 18.2,18 20,16.2 20,14 C 20,11.8 18.2,10 16,10 Z M 16,20 C 12.7,20 9,21.7 9,24 L 9,25 L 23,25 L 23,24 C 23,21.7 19.3,20 16,20 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#9F1239">usuarios</text>
+      <text x="145" y="22" class="sub-badge">users</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">uid</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">nombre</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">correo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">rol</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">codigoEstudiante</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">carrera</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">laboratoriosAsignados</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FCE7F3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#9D174D">array</text>
+      </g>
+      <g transform="translate(0, 272)">
+        <text y="14" class="field-name">fotoUrl</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECDD3"/>
+        <text x="354" y="15" class="type-pill-text" fill="#881337">string</text>
+      </g>
+      <g transform="translate(0, 308)">
+        <text y="14" class="field-name">creadoEn</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FFE4E6"/>
+        <text x="354" y="15" class="type-pill-text" fill="#BE123C">timestamp</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 1, COL 2: reportes (reports) - AZUL                                 -->
+  <!-- ========================================================================= -->
+  <g transform="translate(570, 105)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#F0F9FF" stroke="#93C5FD" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#DBEAFE" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#93C5FD" stroke-width="1.2"/>
+
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#2563EB" filter="url(#header-icon-shadow)"/>
+      <path d="M 12,8 L 17,8 L 21,12 L 21,24 C 21,25.1 20.1,26 19,26 L 12,26 C 10.9,26 10,25.1 10,24 L 10,10 C 10,8.9 10.9,8 12,8 Z M 16,9.5 L 16,13 L 19.5,13 Z M 13,17 L 18,17 L 18,18.5 L 13,18.5 Z M 13,21 L 18,21 L 18,22.5 L 13,22.5 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#1E3A8A">reportes</text>
+      <text x="145" y="22" class="sub-badge">reports</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">idReporte</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">idUsuario</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">laboratorio</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">equipo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">categoria</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">urgencia</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">estado</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BFDBFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1E40AF">string</text>
+      </g>
+      <g transform="translate(0, 272)">
+        <text y="14" class="field-name">imagenesUrl</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E0E7FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#3730A3">array</text>
+      </g>
+      <g transform="translate(0, 308)">
+        <text y="14" class="field-name">coordenadasGPS</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#CFFAFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#0E7490">number</text>
+      </g>
+      <g transform="translate(0, 344)">
+        <text y="14" class="field-name">creadoEn</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#DBEAFE"/>
+        <text x="354" y="15" class="type-pill-text" fill="#1D4ED8">timestamp</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 1, COL 3: laboratorios (laboratories / labs) - VERDE                 -->
+  <!-- ========================================================================= -->
+  <g transform="translate(1080, 105)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#F0FDF4" stroke="#86EFAC" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#DCFCE7" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#86EFAC" stroke-width="1.2"/>
+
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#16A34A" filter="url(#header-icon-shadow)"/>
+      <path d="M 10,9 L 22,9 L 22,23 L 10,23 Z M 12,11 L 14,11 L 14,13 L 12,13 Z M 16,11 L 18,11 L 18,13 L 16,13 Z M 12,15 L 14,15 L 14,17 L 12,17 Z M 16,15 L 18,15 L 18,17 L 16,17 Z M 14,19 L 18,19 L 18,23 L 14,23 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#14532D">laboratorios</text>
+      <text x="186" y="22" class="sub-badge">laboratories / labs</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">idLaboratorio</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">nombre</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">edificio</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">ubicacion</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">capacidad</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#DCFCE7"/>
+        <text x="354" y="15" class="type-pill-text" fill="#15803D">number</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">idTecnico</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">disponibilidad</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#BBF7D0"/>
+        <text x="354" y="15" class="type-pill-text" fill="#166534">string</text>
+      </g>
+      <g transform="translate(0, 272)">
+        <text y="14" class="field-name">activo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#DCFCE7"/>
+        <text x="354" y="15" class="type-pill-text" fill="#15803D">boolean</text>
+      </g>
+      <g transform="translate(0, 308)">
+        <text y="14" class="field-name">creadoEn</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#DCFCE7"/>
+        <text x="354" y="15" class="type-pill-text" fill="#15803D">timestamp</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 2, COL 1: notificaciones (notifications) - ÁMBAR                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 585)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#FFFBEB" stroke="#FDE047" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#FEF9C3" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#FDE047" stroke-width="1.2"/>
+
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#D97706" filter="url(#header-icon-shadow)"/>
+      <path d="M 16,8 C 13.8,8 12,9.8 12,12 L 12,17 L 10,19 L 10,20 L 22,20 L 22,19 L 20,17 L 20,12 C 20,9.8 18.2,8 16,8 Z M 14.5,21 C 14.5,21.8 15.2,22.5 16,22.5 C 16.8,22.5 17.5,21.8 17.5,21 L 14.5,21 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#78350F">notificaciones</text>
+      <text x="195" y="22" class="sub-badge">notifications</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">idNotificacion</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FDE68A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#92400E">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">idDestinatario</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FDE68A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#92400E">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">titulo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FDE68A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#92400E">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">mensaje</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FDE68A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#92400E">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">idReporte</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FDE68A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#92400E">string</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">leido</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FEF08A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#854D0E">boolean</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">creadoEn</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FEF08A"/>
+        <text x="354" y="15" class="type-pill-text" fill="#B45309">timestamp</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 2, COL 2: horarios (schedules) - MORADO                             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(570, 585)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#FAF5FF" stroke="#D8B4FE" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#F3E8FF" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#D8B4FE" stroke-width="1.2"/>
+
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#9333EA" filter="url(#header-icon-shadow)"/>
+      <path d="M 12,8 L 12,10 L 20,10 L 20,8 L 22,8 L 22,10 L 23,10 C 24.1,10 25,10.9 25,12 L 25,24 C 25,25.1 24.1,26 23,26 L 9,26 C 7.9,26 7,25.1 7,24 L 7,12 C 7,10.9 7.9,10 9,10 L 10,10 L 10,8 Z M 9,14 L 9,24 L 23,24 L 23,14 Z M 15,16 L 17,16 L 17,18 L 15,18 Z M 11,16 L 13,16 L 13,18 L 11,18 Z M 19,16 L 21,16 L 21,18 L 19,18 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#581C87">horarios</text>
+      <text x="145" y="22" class="sub-badge">schedules</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">idHorario</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">idLaboratorio</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">nombreLab</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">diaSemana</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">horaInicio / horaFin</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">materia</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">docente</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 272)">
+        <text y="14" class="field-name">semestre</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+      <g transform="translate(0, 308)">
+        <text y="14" class="field-name">estado</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#E9D5FF"/>
+        <text x="354" y="15" class="type-pill-text" fill="#6B21A8">string</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- FILA 2, COL 3: recursos (resources) - CORAL / ROJO                       -->
+  <!-- ========================================================================= -->
+  <g transform="translate(1080, 585)" filter="url(#card-shadow)">
+    <rect width="460" height="450" rx="18" fill="#FFF1F2" stroke="#FCA5A5" stroke-width="1.8"/>
+    <path d="M 0,18 Q 0,0 18,0 L 442,0 Q 460,0 460,18 L 460,68 L 0,68 Z" fill="#FEE2E2" />
+    <line x1="0" y1="68" x2="460" y2="68" stroke="#FCA5A5" stroke-width="1.2"/>
+
+    <g transform="translate(20, 20)">
+      <rect width="32" height="32" rx="8" fill="#EF4444" filter="url(#header-icon-shadow)"/>
+      <path d="M 9,9 L 23,9 L 23,19 L 9,19 Z M 7,21 L 25,21 L 25,22.5 L 7,22.5 Z M 14,19 L 18,19 L 18,21 L 14,21 Z" fill="#FFFFFF"/>
+      <text x="44" y="23" class="card-title" fill="#991B1B">recursos</text>
+      <text x="145" y="22" class="sub-badge">resources</text>
+    </g>
+
+    <g transform="translate(24, 76)">
+      <g transform="translate(0, 20)">
+        <text y="14" class="field-name">idRecurso</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 56)">
+        <text y="14" class="field-name">codigoEquipo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 92)">
+        <text y="14" class="field-name">tipo</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 128)">
+        <text y="14" class="field-name">marca</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 164)">
+        <text y="14" class="field-name">especificaciones</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 200)">
+        <text y="14" class="field-name">laboratorio</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 236)">
+        <text y="14" class="field-name">estado</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FECACA"/>
+        <text x="354" y="15" class="type-pill-text" fill="#991B1B">string</text>
+      </g>
+      <g transform="translate(0, 272)">
+        <text y="14" class="field-name">ultimoMantenimiento</text>
+        <rect x="296" y="0" width="116" height="22" rx="7" fill="#FEE2E2"/>
+        <text x="354" y="15" class="type-pill-text" fill="#DC2626">timestamp</text>
+      </g>
+    </g>
+  </g>
+</svg>

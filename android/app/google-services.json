@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "89487853186",
+    "project_id": "labfix-9e3e5",
+    "storage_bucket": "labfix-9e3e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89487853186:android:2ed9523e504830f0ed969b",
+        "android_client_info": {
+          "package_name": "edu.espoch.reportes_labs_espoch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "89487853186-masp1kohhnbht09qgmd2ajg6lojosvll.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "edu.espoch.reportes_labs_espoch",
+            "certificate_hash": "35159eb6a42338c50efffaca91f07e1c960d226a"
+          }
+        },
+        {
+          "client_id": "89487853186-tv9rs976iha8c4uogm2833rvhbkikqd5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5Kotup_Cug7rYqEFh71ZLg2eegiXYMqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "89487853186-tv9rs976iha8c4uogm2833rvhbkikqd5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
