@@ -68,8 +68,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  late final AuthService _authService =
-      widget.authService ?? AuthService();
+  late final AuthService _authService = widget.authService ?? AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -92,10 +91,7 @@ class _AuthGateState extends State<AuthGate> {
         }
 
         // ── 3. Sesión activa → resolver rol y mostrar la pantalla correcta ─
-        return _RoleRouter(
-          user: user,
-          authService: _authService,
-        );
+        return _RoleRouter(user: user, authService: _authService);
       },
     );
   }
@@ -127,9 +123,19 @@ class _RoleRouterState extends State<_RoleRouter> {
   Future<void> _resolveRole() async {
     try {
       final role = await widget.authService.getCurrentUserRole();
-      if (mounted) setState(() { _role = role; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _role = role;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -168,8 +174,8 @@ class _RoleRouterState extends State<_RoleRouter> {
 
     return switch (_role) {
       'technician' => TechnicianHomeScreen(onLogout: _onLogout),
-      'admin'      => AdminHomeScreen(onLogout: _onLogout),
-      _            => StudentHomeScreen(onLogout: _onLogout),
+      'admin' => AdminHomeScreen(onLogout: _onLogout),
+      _ => StudentHomeScreen(onLogout: _onLogout),
     };
   }
 }
@@ -330,7 +336,9 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           await _authService.signOut();
           _firebaseAuthenticated = false;
-          setState(() => _authError = 'Tu cuenta no tiene un rol válido ($role).');
+          setState(
+            () => _authError = 'Tu cuenta no tiene un rol válido ($role).',
+          );
       }
     } on FirebaseAuthException catch (error) {
       if (mounted) setState(() => _authError = _authErrorMessage(error));
@@ -343,9 +351,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final message = error.toString().replaceFirst('Exception: ', '');
       if (mounted) {
         setState(
-          () => _authError = message.isNotEmpty
-              ? message
-              : 'No se pudo iniciar sesión. Verifica la configuración e inténtalo de nuevo.',
+          () => _authError = message.isNotEmpty ? message : 'No se pudo iniciar sesión. Verifica la configuración e inténtalo de nuevo.',
         );
       }
     } finally {
@@ -577,8 +583,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         '¿No tienes una cuenta? ',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       GestureDetector(
                         key: const Key('go-to-register'),
@@ -643,8 +649,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
       reportId: '#LAB-2026-31',
       laboratory: 'Lab. Microprocesadores',
       equipmentId: 'PC #08',
-      description:
-          'El equipo no inicia sesión y la pantalla parpadea al cargar el sistema.',
+      description: 'El equipo no inicia sesión y la pantalla parpadea al cargar el sistema.',
       urgency: 'Alta',
       status: 'Pendiente',
       userId: 'test_student',
@@ -757,8 +762,9 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
     } else {
       // Modo local / prueba widget sin backend
       setState(() {
-        final idx =
-            _fallbackReports.indexWhere((r) => r.reportId == report.reportId);
+        final idx = _fallbackReports.indexWhere(
+          (r) => r.reportId == report.reportId,
+        );
         if (idx != -1) {
           final old = _fallbackReports[idx];
           if (old.status == 'Pendiente') {
@@ -790,11 +796,13 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
       } catch (_) {}
     } else {
       setState(() {
-        final idx =
-            _fallbackReports.indexWhere((r) => r.reportId == report.reportId);
+        final idx = _fallbackReports.indexWhere(
+          (r) => r.reportId == report.reportId,
+        );
         if (idx != -1) {
-          _fallbackReports[idx] =
-              _fallbackReports[idx].copyWith(urgency: urgency);
+          _fallbackReports[idx] = _fallbackReports[idx].copyWith(
+            urgency: urgency,
+          );
         }
       });
     }
@@ -938,11 +946,13 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
         : _fallbackPendingCount;
     final int inProgressCount = isLiveFirestore
         ? reports
-            .where((r) =>
-                r.status == 'En revisión' ||
-                r.status == 'En atencion' ||
-                r.status == 'En atención')
-            .length
+              .where(
+                (r) =>
+                    r.status == 'En revisión' ||
+                    r.status == 'En atencion' ||
+                    r.status == 'En atención',
+              )
+              .length
         : _fallbackInProgressCount;
     final int resolvedCount = isLiveFirestore
         ? reports.where((r) => r.status == 'Resuelto').length
@@ -1020,18 +1030,24 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                   Card(
                     color: AppColors.red.withValues(alpha: 0.08),
                     child: ListTile(
-                      leading:
-                          const Icon(Icons.error_outline, color: AppColors.red),
-                      title: Text(errorMessage,
-                          style: const TextStyle(color: AppColors.red)),
+                      leading: const Icon(
+                        Icons.error_outline,
+                        color: AppColors.red,
+                      ),
+                      title: Text(
+                        errorMessage,
+                        style: const TextStyle(color: AppColors.red),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
 
                 // ── Metric counters ──
-                Text('Resumen de hoy',
-                    style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Resumen de hoy',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -1147,24 +1163,22 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                   Center(
                     child: Column(
                       children: [
-                        Icon(Icons.inbox_outlined,
-                            size: 56,
-                            color: AppColors.muted.withValues(alpha: 0.5)),
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 56,
+                          color: AppColors.muted.withValues(alpha: 0.5),
+                        ),
                         const SizedBox(height: 10),
                         Text(
                           'Sin incidencias asignadas',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(color: AppColors.muted),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Los reportes de los laboratorios a tu cargo\naparecerán aquí en tiempo real.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
+                          style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppColors.muted),
                         ),
                       ],
@@ -1274,8 +1288,9 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                     leading: const Icon(Icons.dashboard_outlined),
                     title: const Text('Panel de incidencias'),
                     selected: true,
-                    selectedTileColor:
-                        AppColors.fieBlue.withValues(alpha: 0.08),
+                    selectedTileColor: AppColors.fieBlue.withValues(
+                      alpha: 0.08,
+                    ),
                     onTap: () => Navigator.of(context).pop(),
                   ),
                   ListTile(
@@ -1319,7 +1334,9 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                   style: TextButton.styleFrom(
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 13),
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
                   ),
                 ),
               ),
@@ -1366,8 +1383,10 @@ class _TechnicianLabManagementScreen extends StatelessWidget {
           for (final detail in details)
             Card(
               child: ListTile(
-                leading: const Icon(Icons.computer_outlined,
-                    color: AppColors.fieBlue),
+                leading: const Icon(
+                  Icons.computer_outlined,
+                  color: AppColors.fieBlue,
+                ),
                 title: Text(detail),
               ),
             ),
@@ -1456,7 +1475,8 @@ class _ReportIncidentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isResolved = report.status == 'Resuelto';
-    final isInProgress = report.status == 'En revisión' ||
+    final isInProgress =
+        report.status == 'En revisión' ||
         report.status == 'En atencion' ||
         report.status == 'En atención';
 
@@ -1536,14 +1556,13 @@ class _ReportIncidentCard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: isResolved ? null : onStatusPressed,
                   icon: Icon(
-                    isInProgress
-                        ? Icons.check_circle_outline
-                        : Icons.sync,
+                    isInProgress ? Icons.check_circle_outline : Icons.sync,
                   ),
                   label: Text(actionLabel),
                   style: FilledButton.styleFrom(
-                    backgroundColor:
-                        isInProgress ? AppColors.green : AppColors.fieBlue,
+                    backgroundColor: isInProgress
+                        ? AppColors.green
+                        : AppColors.fieBlue,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
