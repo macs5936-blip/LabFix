@@ -118,10 +118,9 @@ class AuthService {
           if (user != null) await _ensureUserProfile(user);
           return userCredential;
         }
-      } on UnimplementedError {
-        // Fallback to signInWithProvider when GoogleSignIn native channel is unavailable
-      } on UnsupportedError {
-        // Fallback to signInWithProvider
+      } catch (e) {
+        // Fallback a signInWithProvider si el canal nativo de GoogleSignIn falla (SHA-1, emulador o Play Services)
+        debugPrint('GoogleSignIn nativo falló ($e), intentando fallback con signInWithProvider...');
       }
 
       final authProvider = GoogleAuthProvider();
