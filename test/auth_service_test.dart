@@ -6,7 +6,11 @@ import 'package:reportes_labs_espoch/presentation/screens/admin/admin_home_scree
 import 'package:reportes_labs_espoch/services/auth_service.dart';
 
 class FakeUser extends Fake implements User {
-  FakeUser({required this.email, this.uid = 'test-uid'});
+  FakeUser({
+    required this.email,
+    this.uid = 'test-uid',
+    this.emailVerified = true,
+  });
 
   @override
   final String? email;
@@ -15,10 +19,23 @@ class FakeUser extends Fake implements User {
   final String uid;
 
   @override
+  final bool emailVerified;
+
+  bool verificationEmailSent = false;
+
+  @override
   String? get displayName => 'Usuario Prueba';
 
   @override
   Future<void> updateDisplayName(String? displayName) async {}
+
+  @override
+  Future<void> sendEmailVerification([ActionCodeSettings? actionCodeSettings]) async {
+    verificationEmailSent = true;
+  }
+
+  @override
+  Future<void> reload() async {}
 }
 
 class FakeUserCredential extends Fake implements UserCredential {
@@ -52,6 +69,9 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
   User? mockUser;
 
   @override
+  User? get currentUser => mockUser;
+
+  @override
   Future<void> signOut() async {
     signedOut = true;
   }
@@ -79,6 +99,15 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
     required String password,
   }) async {
     mockUser = FakeUser(email: email, uid: 'new-user-123');
+    return FakeUserCredential(mockUser);
+  }
+
+  @override
+  Future<UserCredential> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    mockUser ??= FakeUser(email: email, uid: 'signed-in-user');
     return FakeUserCredential(mockUser);
   }
 }
@@ -164,7 +193,7 @@ void main() {
       expect(credential!.user?.email, equals('estudiante@espoch.edu.ec'));
     });
 
-    test('registerStudent creates user with email and password', () async {
+    test('registerStudent creates user, sends email verification and sets display name', () async {
       final fakeAuth = FakeFirebaseAuth();
       final authService = AuthService(auth: fakeAuth);
 
@@ -180,6 +209,49 @@ void main() {
 
       expect(credential.user?.email, equals('carlos.perez@espoch.edu.ec'));
       expect(credential.user?.uid, equals('new-user-123'));
+      expect((credential.user as FakeUser).verificationEmailSent, isTrue);
+    });
+
+    test('signIn throws AuthException and signs out if email is not verified', () async {
+      final unverifiedUser = FakeUser(
+        email: 'alumno@espoch.edu.ec',
+        emailVerified: false,
+      );
+      final fakeAuth = FakeFirebaseAuth()..mockUser = unverifiedUser;
+      final authService = AuthService(auth: fakeAuth);
+
+      await expectLater(
+        () => authService.signIn(
+          email: 'alumno@espoch.edu.ec',
+          password: 'Password123!',
+        ),
+        throwsA(
+          predicate(
+            (e) =>
+                e is AuthException &&
+                e.toString().contains('verificar tu correo'),
+          ),
+        ),
+      );
+
+      expect(fakeAuth.signedOut, isTrue);
+    });
+
+    test('signIn proceeds normally if email is verified', () async {
+      final verifiedUser = FakeUser(
+        email: 'alumno@espoch.edu.ec',
+        emailVerified: true,
+      );
+      final fakeAuth = FakeFirebaseAuth()..mockUser = verifiedUser;
+      final authService = AuthService(auth: fakeAuth);
+
+      final credential = await authService.signIn(
+        email: 'alumno@espoch.edu.ec',
+        password: 'Password123!',
+      );
+
+      expect(credential.user?.email, equals('alumno@espoch.edu.ec'));
+      expect(fakeAuth.signedOut, isFalse);
     });
 
     test('normalizeRole handles uppercase, lowercase, English, Spanish and accented roles', () {

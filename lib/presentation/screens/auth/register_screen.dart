@@ -137,13 +137,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         pao: _pao!,
       );
 
+      // Cierra sesión temporalmente para exigir verificación antes del acceso
+      await _authService.signOut();
+
       if (!mounted) return;
       _showSnack(
-        '¡Cuenta creada exitosamente! Ya puedes iniciar sesión.',
+        '¡Cuenta creada! Revisa tu correo institucional para verificar tu cuenta antes de ingresar.',
         isError: false,
       );
       // Return to login after a short delay so the SnackBar is visible.
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
       if (mounted) Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
       if (mounted) _showSnack(_firebaseError(e), isError: true);

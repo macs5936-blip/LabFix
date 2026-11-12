@@ -18,7 +18,11 @@ import 'package:reportes_labs_espoch/presentation/screens/student/student_shell.
 import 'package:reportes_labs_espoch/services/auth_service.dart';
 
 class FakeUser extends Fake implements User {
-  FakeUser({required this.email, this.uid = 'test-uid'});
+  FakeUser({
+    required this.email,
+    this.uid = 'test-uid',
+    this.emailVerified = true,
+  });
 
   @override
   final String? email;
@@ -27,7 +31,19 @@ class FakeUser extends Fake implements User {
   final String uid;
 
   @override
+  final bool emailVerified;
+
+  @override
   String? get displayName => 'Estudiante FIE';
+
+  @override
+  Future<void> updateDisplayName(String? displayName) async {}
+
+  @override
+  Future<void> sendEmailVerification([ActionCodeSettings? actionCodeSettings]) async {}
+
+  @override
+  Future<void> reload() async {}
 }
 
 class FakeUserCredential extends Fake implements UserCredential {

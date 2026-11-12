@@ -82,7 +82,17 @@ class AuthService {
     );
     final user = credential.user;
     if (user != null) {
-      await _ensureUserProfile(user);
+      try {
+        await user.reload();
+      } catch (_) {}
+      final freshUser = _auth.currentUser ?? user;
+      if (!freshUser.emailVerified) {
+        await _auth.signOut();
+        throw AuthException(
+          'Debes verificar tu correo institucional antes de ingresar. Por favor revisa tu bandeja de entrada o spam.',
+        );
+      }
+      await _ensureUserProfile(freshUser);
     }
     return credential;
   }
@@ -205,6 +215,8 @@ class AuthService {
     final user = credential.user;
     if (user == null) return credential;
 
+    await user.sendEmailVerification();
+
     final displayName = '${nombres.trim()} ${apellidos.trim()}';
     await user.updateDisplayName(displayName);
 
@@ -241,6 +253,8 @@ class AuthService {
     );
     final user = credential.user;
     if (user == null) return credential;
+
+    await user.sendEmailVerification();
 
     final displayName = name.trim();
     await user.updateDisplayName(displayName);
