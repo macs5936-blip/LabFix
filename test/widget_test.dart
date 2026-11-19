@@ -443,37 +443,30 @@ void main() {
         home: StudentHomeScreen(onLogout: returnToLogin),
       ));
       await tester.pumpAndSettle();
+
+      // Tap the floating "Diagnóstico IA" button
       await tester.tap(find.byKey(const Key('open-diagnostic-chatbot')));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Asistente Virtual de Laboratorios - FIE'),
+        find.text('Asistente IA (Gemini) · Conectado en vivo'),
         findsOneWidget,
       );
-      await tester.tap(
-        find.byKey(
-          const Key('diagnostic-option-Sin conexión a red / Ethernet'),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.textContaining('cable Ethernet'), findsOneWidget);
-      expect(find.text('¿El problema continúa?'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('create-technical-report')));
-      await tester.pumpAndSettle();
-      expect(find.text('Crear Nuevo Reporte'), findsOneWidget);
-      expect(find.text('Conectividad / Red'), findsOneWidget);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Abrir menú'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Asistente de Diagnóstico IA'));
-      await tester.pumpAndSettle();
       expect(
-        find.text('Asistente Virtual de Laboratorios - FIE'),
+        find.text('Soporte rápido'),
+        findsOneWidget,
+      );
+
+      // Tap on Inicio tab to return to home
+      await tester.tap(find.text('Inicio'));
+      await tester.pumpAndSettle();
+
+      // Tap on bottom "Asistente IA" tab
+      await tester.tap(find.text('Asistente IA'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Asistente IA (Gemini) · Conectado en vivo'),
         findsOneWidget,
       );
     },

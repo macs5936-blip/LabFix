@@ -288,12 +288,15 @@ class _AiSupportScreenState extends State<AiSupportScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Asistente IA (Gemini) · Conectado en vivo',
-                            style: TextStyle(
-                              color: AppColors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          const Expanded(
+                            child: Text(
+                              'Asistente IA (Gemini) · Conectado en vivo',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],

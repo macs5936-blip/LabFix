@@ -539,7 +539,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     key: const Key('login-espoch'),
                     onPressed: _isSigningIn ? null : _signInWithMicrosoft,
                     icon: const Icon(Icons.account_balance_outlined, size: 22),
-                    label: const Text('Iniciar sesión con cuenta ESPOCH'),
+                    label: const Text('Iniciar sesión con Microsoft'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.fieBlue,
                       side: const BorderSide(color: AppColors.fieBlue),

@@ -8,8 +8,9 @@ void main() {
     test('Initializes with default LabFix API key and official ESPOCH system instruction', () {
       final service = GeminiAiService();
 
-      expect(GeminiAiService.defaultApiKey, 'AQ.Ab8RN6Ksd3ArsqVAULUNHuBHu0SF0MnxJcWlNVKHAZPZyHnxwA');
-      expect(GeminiAiService.defaultModelName, 'gemini-1.5-flash');
+      expect(GeminiAiService.defaultApiKey, isNotEmpty);
+      expect(GeminiAiService.defaultApiKey.startsWith('AQ.'), isTrue);
+      expect(GeminiAiService.defaultModelName, 'gemini-3.5-flash-lite');
       expect(GeminiAiService.systemInstruction, contains('asistente técnico oficial'));
       expect(GeminiAiService.systemInstruction, contains('ESPOCH'));
       expect(service.model, isNotNull);

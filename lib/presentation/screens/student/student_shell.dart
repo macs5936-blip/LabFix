@@ -8,7 +8,6 @@ import '../../../widgets/app_drawer.dart';
 import '../shared/notifications_screen.dart';
 import '../shared/profile_settings_screen.dart';
 import 'ai_assistant_screen.dart';
-import 'diagnostic_chatbot_screen.dart';
 import 'report_history_screen.dart';
 import 'report_form_screen.dart';
 import 'student_dashboard_screen.dart';
@@ -170,10 +169,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   void _openProfile(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ProfileScreen(
-          auth: widget.auth,
-          firestore: widget.firestore,
-        ),
+        builder: (_) =>
+            ProfileScreen(auth: widget.auth, firestore: widget.firestore),
       ),
     );
   }
@@ -188,7 +185,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
     );
   }
-
 
   void _openInfoPage(
     BuildContext context,
@@ -228,12 +224,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   void _openDiagnosticChatbot() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            DiagnosticChatbotScreen(onCreateReport: _openReportForm),
-      ),
-    );
+    setState(() => _selectedIndex = 2);
   }
 
   void _openReportForm(String category) {

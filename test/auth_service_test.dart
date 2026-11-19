@@ -304,7 +304,7 @@ void main() {
       expect(find.byKey(const Key('login-email')), findsOneWidget);
       expect(find.text('Ingresar con correo'), findsOneWidget);
       expect(find.byKey(const Key('login-espoch')), findsOneWidget);
-      expect(find.text('Iniciar sesión con cuenta ESPOCH'), findsOneWidget);
+      expect(find.text('Iniciar sesión con Microsoft'), findsOneWidget);
       expect(find.byKey(const Key('login-google')), findsOneWidget);
       expect(find.text('Iniciar sesión con Google'), findsOneWidget);
 
