@@ -9,7 +9,6 @@ import '../shared/notifications_screen.dart';
 import '../shared/profile_settings_screen.dart';
 import 'ai_assistant_screen.dart';
 import 'report_history_screen.dart';
-import 'report_form_screen.dart';
 import 'student_dashboard_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -227,19 +226,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     setState(() => _selectedIndex = 2);
   }
 
-  void _openReportForm(String category) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NewReportScreen(
-          onSubmit: _addReport,
-          initialCategory: category,
-          onOpenHistory: () => setState(() => _selectedIndex = 1),
-          auth: widget.auth,
-          firestore: widget.firestore,
-        ),
-      ),
-    );
-  }
 }
 
 class _DrawerInfoPage extends StatelessWidget {
