@@ -1,15 +1,27 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 
 import '../../../config/theme/app_theme.dart';
 import '../../../data/lab_model.dart';
-import '../../../data/report_model.dart';
+import '../../../data/report_model.dart' show mockReports;
+import '../../../models/report_model.dart';
+import '../../../models/user_model.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/firestore_service.dart';
+import '../../../widgets/location_picker_modal.dart';
 import '../shared/notifications_screen.dart';
 import '../shared/profile_settings_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
-  const AdminHomeScreen({super.key, required this.onLogout});
+  const AdminHomeScreen({
+    super.key,
+    required this.onLogout,
+    this.firestoreService,
+  });
 
   final ValueChanged<BuildContext> onLogout;
+  final FirestoreService? firestoreService;
 
   @override
   State<AdminHomeScreen> createState() => _AdminHomeScreenState();
@@ -18,41 +30,63 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final FirestoreService _firestoreService =
+      widget.firestoreService ?? FirestoreService();
+
+  bool get _isFirebaseReady {
+    if (widget.firestoreService != null) return true;
+    try {
+      return Firebase.apps.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   String _period = 'Este Mes';
   String _userSearch = '';
   String _selectedLab = 'Lab. Redes y Telecomunicaciones';
   String _selectedTechnician = 'Carlos Mena';
 
-  final List<_ManagedUser> _users = [
-    _ManagedUser(
-      name: 'Ana Paredes',
+  final List<UserModel> _fallbackUsers = [
+    const UserModel(
+      uid: 'user_fallback_01',
+      nombres: 'Ana',
+      apellidos: 'Paredes',
       email: 'ana.paredes@espoch.edu.ec',
-      code: 'EST-FIE-2024-018',
-      role: 'Estudiante',
+      codigoEstudiante: 'EST-FIE-2024-018',
+      rol: 'STUDENT',
     ),
-    _ManagedUser(
-      name: 'Luis Cárdenas',
+    const UserModel(
+      uid: 'user_fallback_02',
+      nombres: 'Luis',
+      apellidos: 'Cárdenas',
       email: 'luis.cardenas@espoch.edu.ec',
-      code: 'EST-FIE-2023-076',
-      role: 'Estudiante',
+      codigoEstudiante: 'EST-FIE-2023-076',
+      rol: 'STUDENT',
     ),
-    _ManagedUser(
-      name: 'Carlos Mena',
+    const UserModel(
+      uid: 'user_fallback_03',
+      nombres: 'Carlos',
+      apellidos: 'Mena',
       email: 'carlos.mena@espoch.edu.ec',
-      code: 'TEC-FIE-014',
-      role: 'Técnico',
+      codigoEstudiante: 'TEC-FIE-014',
+      rol: 'TECHNICIAN',
     ),
-    _ManagedUser(
-      name: 'Sofía Viteri',
+    const UserModel(
+      uid: 'user_fallback_04',
+      nombres: 'Sofía',
+      apellidos: 'Viteri',
       email: 'sofia.viteri@espoch.edu.ec',
-      code: 'TEC-FIE-022',
-      role: 'Técnico',
+      codigoEstudiante: 'TEC-FIE-022',
+      rol: 'TECHNICIAN',
     ),
-    _ManagedUser(
-      name: 'David León',
+    const UserModel(
+      uid: 'user_fallback_05',
+      nombres: 'David',
+      apellidos: 'León',
       email: 'david.leon@espoch.edu.ec',
-      code: 'TEC-FIE-031',
-      role: 'Técnico',
+      codigoEstudiante: 'TEC-FIE-031',
+      rol: 'TECHNICIAN',
     ),
   ];
 
@@ -149,7 +183,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     ],
   };
 
-  static const _periodMetrics = {
+  static const _fallbackPeriodMetrics = {
     'Esta Semana': _PeriodMetrics(
       incidents: '11',
       resolution: '3.8 h',
@@ -170,7 +204,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     ),
   };
 
-  _PeriodMetrics get _metrics => _periodMetrics[_period]!;
+  _PeriodMetrics get _metrics => _fallbackPeriodMetrics[_period]!;
 
   _TechnicianStats get _technicianStats =>
       _technicianStatsMap[_selectedTechnician]!;
@@ -182,6 +216,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    if (_isFirebaseReady) {
+      LabCatalog.syncWithStream(_firestoreService.streamLaboratories());
+    }
   }
 
   @override
@@ -190,7 +227,131 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     super.dispose();
   }
 
-  Future<void> _showExportDialog() async {
+  _LiveMetrics _calculateLiveMetrics(List<ReportModel> allReports, String period) {
+    final now = DateTime.now();
+    final periodReports = allReports.where((r) {
+      final date = r.createdAt;
+      if (date == null) return true;
+      final diff = now.difference(date);
+      return switch (period) {
+        'Esta Semana' => diff.inDays <= 7,
+        'Este Mes' => diff.inDays <= 30,
+        'Este Semestre' => diff.inDays <= 180,
+        _ => true,
+      };
+    }).toList();
+
+    final total = periodReports.length;
+
+    // 1. Tiempo promedio de resolución
+    final resolvedReports = periodReports.where((r) {
+      final s = r.status.trim().toLowerCase();
+      return s == 'resuelto' || s == 'resolved';
+    }).toList();
+
+    String resolutionStr = '--';
+    if (resolvedReports.isNotEmpty) {
+      var totalMinutes = 0;
+      var count = 0;
+      for (final r in resolvedReports) {
+        if (r.createdAt != null && r.updatedAt != null) {
+          final diff = r.updatedAt!.difference(r.createdAt!).inMinutes.abs();
+          if (diff > 0) {
+            totalMinutes += diff;
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        final avgHours = totalMinutes / (count * 60.0);
+        resolutionStr = avgHours >= 1.0
+            ? '${avgHours.toStringAsFixed(1)} h'
+            : '${(avgHours * 60).round()} min';
+      } else {
+        resolutionStr = '0.5 h';
+      }
+    } else if (total > 0) {
+      resolutionStr = 'En atención';
+    }
+
+    // 2. Laboratorio con mayor tasa de fallos
+    String worstLab = 'Sin fallos';
+    if (total > 0) {
+      final labCounts = <String, int>{};
+      for (final r in periodReports) {
+        final lab = r.laboratory.trim();
+        if (lab.isNotEmpty) {
+          labCounts[lab] = (labCounts[lab] ?? 0) + 1;
+        }
+      }
+      if (labCounts.isNotEmpty) {
+        var maxCount = 0;
+        labCounts.forEach((lab, c) {
+          if (c > maxCount) {
+            maxCount = c;
+            worstLab = lab.replaceAll('Lab. ', '').trim();
+          }
+        });
+      }
+    }
+
+    // 3. Disponibilidad de equipos
+    String availabilityStr = '100%';
+    if (total > 0) {
+      final openCount = periodReports.where((r) {
+        final s = r.status.trim().toLowerCase();
+        return s != 'resuelto' && s != 'resolved' && s != 'cancelado';
+      }).length;
+      final pct = (100.0 - (openCount * 3.0)).clamp(75.0, 100.0);
+      availabilityStr = '${pct.toStringAsFixed(1)}%';
+    }
+
+    // 4. Distribución por tipo de fallo
+    int hwPct = 0;
+    int swPct = 0;
+    int netPct = 0;
+    int infraPct = 0;
+
+    if (total > 0) {
+      var hw = 0;
+      var sw = 0;
+      var net = 0;
+      var infra = 0;
+
+      for (final r in periodReports) {
+        final cat = (r.category.isNotEmpty ? r.category : r.description).toLowerCase();
+        if (cat.contains('hard') || cat.contains('disco') || cat.contains('pantalla') || cat.contains('fuente') || cat.contains('mouse') || cat.contains('teclado')) {
+          hw++;
+        } else if (cat.contains('soft') || cat.contains('sistema') || cat.contains('windows') || cat.contains('linux') || cat.contains('licencia') || cat.contains('virtual')) {
+          sw++;
+        } else if (cat.contains('red') || cat.contains('conect') || cat.contains('wifi') || cat.contains('internet') || cat.contains('cable') || cat.contains('switch')) {
+          net++;
+        } else {
+          infra++;
+        }
+      }
+
+      hwPct = ((hw / total) * 100).round();
+      swPct = ((sw / total) * 100).round();
+      netPct = ((net / total) * 100).round();
+      infraPct = ((infra / total) * 100).round();
+    }
+
+    return _LiveMetrics(
+      incidentsCount: '$total',
+      resolutionTime: resolutionStr,
+      worstLab: worstLab,
+      availability: availabilityStr,
+      hardwarePct: hwPct,
+      softwarePct: swPct,
+      networkPct: netPct,
+      infraPct: infraPct,
+      totalInPeriod: total,
+    );
+  }
+
+  Future<void> _showExportDialog([int? count]) async {
+    final extra = count != null ? ' con $count incidencias' : '';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -201,7 +362,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         ),
         title: const Text('Informe preparado'),
         content: Text(
-          'El informe general de $_period está listo para descargar en PDF / Excel. (Descarga simulada)',
+          'El informe general de $_period$extra está listo para descargar en PDF / Excel. (Descarga simulada)',
         ),
         actions: [
           FilledButton(
@@ -213,13 +374,117 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     );
   }
 
+  Future<void> _confirmClearDatabase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.delete_sweep_outlined,
+          color: AppColors.red,
+          size: 40,
+        ),
+        title: const Text('Vaciar Colecciones'),
+        content: const Text(
+          '¿Deseas vaciar todas las colecciones de prueba (reportes, laboratorios, horarios, notificaciones, etc.) de la base de datos?\n\n'
+          '✅ IMPORTANTE: La colección de USUARIOS quedará intacta y ningún usuario registrado será eliminado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sí, Vaciar Colecciones'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Vaciando colecciones en Cloud Firestore...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      try {
+        final result = await _firestoreService.clearAllCollectionsExceptUsers();
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // Cierra loading
+          final total = result.values.fold<int>(0, (sum, c) => sum + c);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Vaciado exitoso: $total documentos eliminados. Colección de usuarios conservada intacta.',
+              ),
+              backgroundColor: AppColors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // Cierra loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al vaciar colecciones: $e'),
+              backgroundColor: AppColors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Widget _buildUsersTab() {
+    if (!_isFirebaseReady) {
+      return _buildUsersList(_fallbackUsers);
+    }
+
+    return StreamBuilder<List<UserModel>>(
+      stream: _firestoreService.streamAllUsers(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data ?? const <UserModel>[];
+        if (users.isEmpty && !snapshot.hasData) {
+          return _buildUsersList(_fallbackUsers);
+        }
+        return _buildUsersList(users);
+      },
+    );
+  }
+
+  Widget _buildUsersList(List<UserModel> usersList) {
     final query = _userSearch.trim().toLowerCase();
-    final visibleUsers = _users.where((user) {
+    final visibleUsers = usersList.where((user) {
+      final name = user.displayName.toLowerCase();
+      final email = user.email.toLowerCase();
+      final code = user.codigoEstudiante.toLowerCase();
+      final cedula = user.cedula.toLowerCase();
       return query.isEmpty ||
-          user.name.toLowerCase().contains(query) ||
-          user.email.toLowerCase().contains(query) ||
-          user.code.toLowerCase().contains(query);
+          name.contains(query) ||
+          email.contains(query) ||
+          code.contains(query) ||
+          cedula.contains(query);
     }).toList();
 
     return ListView(
@@ -251,95 +516,460 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         ),
         const SizedBox(height: 8),
         if (visibleUsers.isEmpty)
-          const _AdminEmptyState(
+          _AdminEmptyState(
             icon: Icons.person_search_outlined,
-            message: 'No se encontraron usuarios.',
+            message: query.isEmpty
+                ? 'No hay usuarios registrados en la base de datos.'
+                : 'No se encontraron usuarios para "$query".',
           )
         else
           for (final user in visibleUsers) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(13),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.fieBlue.withValues(alpha: 0.1),
-                      foregroundColor: AppColors.fieBlue,
-                      child: Text(_initials(user.name)),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            user.email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            user.code,
-                            style: const TextStyle(
-                              color: AppColors.fieBlue,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 122,
-                      child: DropdownButtonFormField<String>(
-                        key: Key('role-${user.code}'),
-                        initialValue: user.role,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 9,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Estudiante',
-                            child: Text('Estudiante'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Técnico',
-                            child: Text('Técnico'),
-                          ),
-                        ],
-                        onChanged: (role) {
-                          if (role == null || role == user.role) return;
-                          setState(() => user.role = role);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Rol de ${user.name} actualizado a $role',
-                              ),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildUserCard(user),
             const SizedBox(height: 8),
           ],
       ],
+    );
+  }
+
+  Widget _buildUserCard(UserModel user) {
+    final cleanRole = AuthService.normalizeRole(user.rol);
+    final initialDropdownValue = switch (cleanRole) {
+      'admin' => 'Administrador',
+      'technician' => 'Técnico',
+      _ => 'Estudiante',
+    };
+
+    final displayCode = user.codigoEstudiante.isNotEmpty
+        ? user.codigoEstudiante
+        : (user.cedula.isNotEmpty
+            ? 'CI: ${user.cedula}'
+            : (user.uid.length >= 8 ? 'ID: ${user.uid.substring(0, 8)}' : user.uid));
+
+    final userKeyId = user.codigoEstudiante.isNotEmpty ? user.codigoEstudiante : user.uid;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(13),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: AppColors.fieBlue.withValues(alpha: 0.1),
+              foregroundColor: AppColors.fieBlue,
+              child: Text(
+                _initials(user.displayName.isNotEmpty ? user.displayName : user.email),
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.displayName.isNotEmpty ? user.displayName : user.email,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    user.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (displayCode.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      displayCode,
+                      style: const TextStyle(
+                        color: AppColors.fieBlue,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 140,
+              child: DropdownButtonFormField<String>(
+                key: Key('role-$userKeyId'),
+                initialValue: initialDropdownValue,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Estudiante',
+                    child: Text('Estudiante'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Técnico',
+                    child: Text('Técnico'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Administrador',
+                    child: Text('Administrador'),
+                  ),
+                ],
+                onChanged: (selectedLabel) async {
+                  if (selectedLabel == null || selectedLabel == initialDropdownValue) return;
+
+                  final newRole = switch (selectedLabel) {
+                    'Administrador' => 'admin',
+                    'Técnico' => 'technician',
+                    _ => 'student',
+                  };
+
+                  if (_isFirebaseReady) {
+                    try {
+                      await _firestoreService.updateUserRole(user.uid, newRole);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error al actualizar en Firestore: $e'),
+                            backgroundColor: AppColors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Rol de ${user.displayName.isNotEmpty ? user.displayName : user.email} actualizado a $selectedLabel',
+                        ),
+                        backgroundColor: AppColors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricsTab() {
+    if (!_isFirebaseReady) {
+      return _buildMetricsContent(
+        _PeriodMetrics(
+          incidents: _metrics.incidents,
+          resolution: _metrics.resolution,
+          availability: _metrics.availability,
+          failures: _metrics.failures,
+        ),
+        worstLabName: 'Redes y Telecomunicaciones',
+        totalIncidents: int.tryParse(_metrics.incidents) ?? 0,
+        reportsList: const [],
+        isLoading: false,
+      );
+    }
+
+    return StreamBuilder<List<ReportModel>>(
+      stream: _firestoreService.getAllReports(),
+      builder: (context, snapshot) {
+        final reports = snapshot.data ?? const <ReportModel>[];
+        final liveMetrics = _calculateLiveMetrics(reports, _period);
+
+        return _buildMetricsContent(
+          _PeriodMetrics(
+            incidents: liveMetrics.incidentsCount,
+            resolution: liveMetrics.resolutionTime,
+            availability: liveMetrics.availability,
+            failures: [
+              liveMetrics.hardwarePct,
+              liveMetrics.softwarePct,
+              liveMetrics.networkPct,
+              liveMetrics.infraPct,
+            ],
+          ),
+          worstLabName: liveMetrics.worstLab,
+          totalIncidents: liveMetrics.totalInPeriod,
+          reportsList: reports,
+          isLoading: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData,
+        );
+      },
+    );
+  }
+
+  Widget _buildMetricsContent(
+    _PeriodMetrics metrics, {
+    required String worstLabName,
+    required int totalIncidents,
+    required List<ReportModel> reportsList,
+    required bool isLoading,
+  }) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.fieBlue,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Panel de Gestión y Métricas - FIE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 5),
+              Text(
+                'Indicadores globales de laboratorios y soporte en tiempo real',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Indicadores globales',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            if (isLoading)
+              const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              const Icon(Icons.insights_outlined, color: AppColors.fieBlue),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Wrap(
+          spacing: 7,
+          runSpacing: 4,
+          children: [
+            for (final period in ['Esta Semana', 'Este Mes', 'Este Semestre'])
+              ChoiceChip(
+                key: Key('period-$period'),
+                label: Text(period),
+                selected: _period == period,
+                onSelected: (_) => setState(() => _period = period),
+                selectedColor: AppColors.fieBlue.withValues(alpha: 0.12),
+                side: BorderSide(
+                  color: _period == period
+                      ? AppColors.fieBlue.withValues(alpha: 0.3)
+                      : AppColors.line,
+                ),
+                labelStyle: TextStyle(
+                  color: _period == period
+                      ? AppColors.fieBlue
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 10) / 2;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: cardWidth,
+                  child: _MetricCard(
+                    label: 'Incidencias en el período',
+                    value: metrics.incidents,
+                    icon: Icons.report_outlined,
+                    color: AppColors.fieBlue,
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _MetricCard(
+                    label: 'Tiempo promedio de resolución',
+                    value: metrics.resolution,
+                    icon: Icons.schedule_outlined,
+                    color: AppColors.yellow,
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _MetricCard(
+                    label: 'Laboratorio con mayor tasa de fallos',
+                    value: worstLabName,
+                    icon: Icons.warning_amber_outlined,
+                    color: AppColors.red,
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _MetricCard(
+                    label: 'Disponibilidad de equipos',
+                    value: metrics.availability,
+                    icon: Icons.check_circle_outline,
+                    color: AppColors.green,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 22),
+        Text(
+          'Distribución por tipo de fallo',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 9),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: totalIncidents == 0
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Center(
+                      child: Text(
+                        'Sin incidencias registradas en este período.',
+                        style: TextStyle(color: AppColors.muted, fontSize: 13),
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      _FailureBar(
+                        label: 'Hardware',
+                        percentage: metrics.failures[0],
+                        color: AppColors.fieBlue,
+                      ),
+                      _FailureBar(
+                        label: 'Software',
+                        percentage: metrics.failures[1],
+                        color: AppColors.green,
+                      ),
+                      _FailureBar(
+                        label: 'Red',
+                        percentage: metrics.failures[2],
+                        color: AppColors.yellow,
+                      ),
+                      _FailureBar(
+                        label: 'Infraestructura / Otros',
+                        percentage: metrics.failures[3],
+                        color: AppColors.red,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Estado de laboratorios',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Text(
+              '${LabCatalog.labs.value.length} sedes/aulas',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        ValueListenableBuilder<List<LabRecord>>(
+          valueListenable: LabCatalog.labs,
+          builder: (context, laboratories, _) => Card(
+            child: Column(
+              children: [
+                for (var index = 0; index < laboratories.length; index++)
+                  _buildLiveLabStatusRow(
+                    laboratories[index],
+                    reportsList,
+                    showDivider: index < laboratories.length - 1,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          key: const Key('export-report'),
+          onPressed: () => _showExportDialog(totalIncidents),
+          icon: const Icon(Icons.file_download_outlined),
+          label: const Text('Exportar Informe General (PDF / Excel)'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.fieBlue,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const Key('manage-laboratories-shortcut'),
+          onPressed: () => _tabController.animateTo(2),
+          icon: const Icon(Icons.domain_add_outlined),
+          label: const Text('Registrar Nuevo Laboratorio'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.fieBlue,
+            side: const BorderSide(color: AppColors.fieBlue),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLiveLabStatusRow(
+    LabRecord lab,
+    List<ReportModel> allReports, {
+    required bool showDivider,
+  }) {
+    final openReportsInLab = allReports.where((r) {
+      final matchesLab =
+          r.laboratory.toLowerCase().contains(lab.name.toLowerCase()) ||
+          lab.name.toLowerCase().contains(r.laboratory.toLowerCase());
+      final isPending =
+          r.status.toLowerCase() != 'resuelto' &&
+          r.status.toLowerCase() != 'resolved' &&
+          r.status.toLowerCase() != 'cancelado';
+      return matchesLab && isPending;
+    }).length;
+
+    var statusLabel = lab.availability.label;
+    var statusColor = _availabilityColor(lab.availability);
+
+    if (openReportsInLab > 0 && lab.availability == LabAvailability.activo) {
+      statusLabel =
+          '$openReportsInLab incidencia${openReportsInLab > 1 ? 's' : ''}';
+      statusColor = AppColors.yellow;
+    }
+
+    return _LabStatusRow(
+      name: lab.name,
+      status: statusLabel,
+      color: statusColor,
+      showDivider: showDivider,
     );
   }
 
@@ -362,7 +992,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
           key: const Key('register-laboratory'),
           onPressed: () => _openLaboratoryEditor(),
           icon: const Icon(Icons.domain_add_outlined),
-          label: const Text('Registrar / Modificar Laboratorios'),
+          label: const Text('Registrar Nuevo Laboratorio'),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.fieBlue,
             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -371,44 +1001,51 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         const SizedBox(height: 14),
         ValueListenableBuilder<List<LabRecord>>(
           valueListenable: LabCatalog.labs,
-          builder: (context, laboratories, _) =>
-              DropdownButtonFormField<String>(
-                key: const Key('schedule-lab-selector'),
-                initialValue: _selectedLab,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Laboratorio',
-                  prefixIcon: Icon(Icons.science_outlined),
-                ),
-                items: [
-                  for (final lab in laboratories)
-                    DropdownMenuItem(
-                      value: lab.name,
+          builder: (context, laboratories, _) {
+            final hasMatch = laboratories.any((l) => l.name == _selectedLab);
+            final effectiveValue = hasMatch
+                ? _selectedLab
+                : (laboratories.isNotEmpty ? laboratories.first.name : null);
+
+            return DropdownButtonFormField<String>(
+              key: const Key('schedule-lab-selector'),
+              initialValue: effectiveValue,
+              isExpanded: true,
+              hint: const Text('No hay laboratorios registrados'),
+              decoration: const InputDecoration(
+                labelText: 'Laboratorio',
+                prefixIcon: Icon(Icons.science_outlined),
+              ),
+              items: [
+                for (final lab in laboratories)
+                  DropdownMenuItem(
+                    value: lab.name,
+                    child: Text(
+                      lab.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              selectedItemBuilder: (context) => [
+                for (final lab in laboratories)
+                  SizedBox(
+                    width: 150,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         lab.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                ],
-                selectedItemBuilder: (context) => [
-                  for (final lab in laboratories)
-                    SizedBox(
-                      width: 150,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          lab.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                ],
-                onChanged: (lab) {
-                  if (lab != null) setState(() => _selectedLab = lab);
-                },
-              ),
+                  ),
+              ],
+              onChanged: (lab) {
+                if (lab != null) setState(() => _selectedLab = lab);
+              },
+            );
+          },
         ),
         const SizedBox(height: 14),
         Row(
@@ -525,7 +1162,45 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 10),
-          for (final laboratory in laboratories) ...[
+          if (laboratories.isEmpty)
+            Card(
+              elevation: 0,
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.science_outlined, size: 40, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        'No hay laboratorios registrados en la base de datos.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Presiona "Registrar Nuevo Laboratorio" o el botón "+" para añadir laboratorios.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            for (final laboratory in laboratories) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(13, 12, 7, 12),
@@ -566,11 +1241,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                         ],
                       ),
                     ),
-                    IconButton(
-                      key: Key('edit-lab-${laboratory.id}'),
-                      tooltip: 'Editar ${laboratory.name}',
-                      onPressed: () => _openLaboratoryEditor(laboratory),
-                      icon: const Icon(Icons.edit_outlined),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          key: Key('edit-lab-${laboratory.id}'),
+                          tooltip: 'Editar ${laboratory.name}',
+                          onPressed: () => _openLaboratoryEditor(laboratory),
+                          icon: const Icon(Icons.edit_outlined),
+                        ),
+                        IconButton(
+                          key: Key('delete-lab-${laboratory.id}'),
+                          tooltip: 'Eliminar ${laboratory.name}',
+                          onPressed: () => _confirmDeleteLaboratory(laboratory),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: AppColors.red,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -583,10 +1272,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     );
   }
 
+  Future<List<String>> _fetchTechnicians() async {
+    if (_isFirebaseReady) {
+      try {
+        final users = await _firestoreService.streamAllUsers().first.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => const [],
+        );
+        final techs = users
+            .where((u) => AuthService.normalizeRole(u.rol) == 'technician')
+            .map((u) => u.displayName.isNotEmpty ? u.displayName : u.email)
+            .toList();
+        if (techs.isNotEmpty) return techs;
+      } catch (_) {}
+    }
+    return const ['Carlos Mena', 'Sofía Viteri', 'David León'];
+  }
+
   Future<void> _openLaboratoryEditor([LabRecord? existing]) async {
+    final technicians = await _fetchTechnicians();
+    if (!mounted) return;
+
     final saved = await showDialog<LabRecord>(
       context: context,
-      builder: (_) => _LabEditorDialog(laboratory: existing),
+      builder: (_) => _LabEditorDialog(
+        laboratory: existing,
+        technicians: technicians,
+      ),
     );
     if (saved == null || !mounted) return;
 
@@ -601,15 +1313,90 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
       }
     });
     LabCatalog.save(saved);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          existing == null
-              ? 'Laboratorio registrado exitosamente'
-              : 'Laboratorio actualizado exitosamente',
+
+    if (_isFirebaseReady) {
+      try {
+        await _firestoreService.saveLaboratory(saved);
+      } catch (e) {
+        debugPrint('Aviso al guardar laboratorio en Firestore: $e');
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            existing == null
+                ? 'Laboratorio registrado exitosamente'
+                : 'Laboratorio actualizado exitosamente',
+          ),
         ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteLaboratory(LabRecord laboratory) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.delete_forever_outlined,
+          color: AppColors.red,
+          size: 38,
+        ),
+        title: const Text('¿Eliminar laboratorio?'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar "${laboratory.name}"?\n\n'
+          'Esta acción removerá el laboratorio de la lista y de la base de datos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        LabCatalog.delete(laboratory.id);
+        _schedules.remove(laboratory.name);
+        if (_selectedLab == laboratory.name) {
+          _selectedLab = LabCatalog.labs.value.isNotEmpty
+              ? LabCatalog.labs.value.first.name
+              : '';
+        }
+      });
+
+      if (_isFirebaseReady) {
+        try {
+          await _firestoreService.deleteLaboratory(
+            laboratory.id,
+            laboratory.name,
+          );
+        } catch (e) {
+          debugPrint('Aviso al eliminar laboratorio en Firestore: $e');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Laboratorio "${laboratory.name}" eliminado exitosamente.',
+            ),
+            backgroundColor: AppColors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showScheduleUploadDialog() async {
@@ -889,6 +1676,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         ),
         actions: [
           IconButton(
+            tooltip: 'Vaciar colecciones (excepto usuarios)',
+            onPressed: _confirmClearDatabase,
+            icon: const Icon(Icons.delete_sweep_outlined),
+          ),
+          IconButton(
             tooltip: 'Notificaciones',
             onPressed: () => _openNotifications(context),
             icon: const Icon(Icons.notifications_outlined),
@@ -920,216 +1712,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          ListView(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.fieBlue,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Panel de Gestión y Métricas - FIE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Indicadores globales de laboratorios y soporte',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Indicadores globales',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  const Icon(Icons.insights_outlined, color: AppColors.fieBlue),
-                ],
-              ),
-              const SizedBox(height: 9),
-              Wrap(
-                spacing: 7,
-                runSpacing: 4,
-                children: [
-                  for (final period in _periodMetrics.keys)
-                    ChoiceChip(
-                      key: Key('period-$period'),
-                      label: Text(period),
-                      selected: _period == period,
-                      onSelected: (_) => setState(() => _period = period),
-                      selectedColor: AppColors.fieBlue.withValues(alpha: 0.12),
-                      side: BorderSide(
-                        color: _period == period
-                            ? AppColors.fieBlue.withValues(alpha: 0.3)
-                            : AppColors.line,
-                      ),
-                      labelStyle: TextStyle(
-                        color: _period == period
-                            ? AppColors.fieBlue
-                            : Theme.of(context).colorScheme.onSurface,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final cardWidth = (constraints.maxWidth - 10) / 2;
-                  return Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      SizedBox(
-                        width: cardWidth,
-                        child: _MetricCard(
-                          label: 'Incidencias en el período',
-                          value: _metrics.incidents,
-                          icon: Icons.report_outlined,
-                          color: AppColors.fieBlue,
-                        ),
-                      ),
-                      SizedBox(
-                        width: cardWidth,
-                        child: _MetricCard(
-                          label: 'Tiempo promedio de resolución',
-                          value: _metrics.resolution,
-                          icon: Icons.schedule_outlined,
-                          color: AppColors.yellow,
-                        ),
-                      ),
-                      SizedBox(
-                        width: cardWidth,
-                        child: const _MetricCard(
-                          label: 'Laboratorio con mayor tasa de fallos',
-                          value: 'Redes y Telecomunicaciones',
-                          icon: Icons.warning_amber_outlined,
-                          color: AppColors.red,
-                        ),
-                      ),
-                      SizedBox(
-                        width: cardWidth,
-                        child: _MetricCard(
-                          label: 'Disponibilidad de equipos',
-                          value: _metrics.availability,
-                          icon: Icons.check_circle_outline,
-                          color: AppColors.green,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'Distribución por tipo de fallo',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 9),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    children: [
-                      _FailureBar(
-                        label: 'Hardware',
-                        percentage: _metrics.failures[0],
-                        color: AppColors.fieBlue,
-                      ),
-                      _FailureBar(
-                        label: 'Software',
-                        percentage: _metrics.failures[1],
-                        color: AppColors.green,
-                      ),
-                      _FailureBar(
-                        label: 'Red',
-                        percentage: _metrics.failures[2],
-                        color: AppColors.yellow,
-                      ),
-                      _FailureBar(
-                        label: 'Infraestructura',
-                        percentage: _metrics.failures[3],
-                        color: AppColors.red,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Estado de laboratorios',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  Text('3 sedes', style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-              const SizedBox(height: 9),
-              ValueListenableBuilder<List<LabRecord>>(
-                valueListenable: LabCatalog.labs,
-                builder: (context, laboratories, _) => Card(
-                  child: Column(
-                    children: [
-                      for (var index = 0; index < laboratories.length; index++)
-                        _LabStatusRow(
-                          name: laboratories[index].name,
-                          status: laboratories[index].availability.label,
-                          color: _availabilityColor(
-                            laboratories[index].availability,
-                          ),
-                          showDivider: index < laboratories.length - 1,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                key: const Key('export-report'),
-                onPressed: _showExportDialog,
-                icon: const Icon(Icons.file_download_outlined),
-                label: const Text('Exportar Informe General (PDF / Excel)'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.fieBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                key: const Key('manage-laboratories-shortcut'),
-                onPressed: () => _tabController.animateTo(2),
-                icon: const Icon(Icons.domain_add_outlined),
-                label: const Text('Registrar / Modificar Laboratorios'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.fieBlue,
-                  side: const BorderSide(color: AppColors.fieBlue),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ],
-          ),
+          _buildMetricsTab(),
           _buildUsersTab(),
           _buildSchedulesTab(),
           _buildTechnicianPerformanceTab(),
@@ -1235,6 +1818,24 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                     onTap: () => _selectSection(context, 2),
                   ),
                   ListTile(
+                    leading: const Icon(Icons.delete_sweep_outlined, color: AppColors.red),
+                    title: const Text(
+                      'Vaciar colecciones (Limpiar datos)',
+                      style: TextStyle(
+                        color: AppColors.red,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Elimina documentos excepto usuarios',
+                      style: TextStyle(fontSize: 10),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _confirmClearDatabase();
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.person_outline),
                     title: const Text('Mi Perfil / Ajustes'),
                     onTap: () => _openAdminProfile(context),
@@ -1304,9 +1905,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
 }
 
 class _LabEditorDialog extends StatefulWidget {
-  const _LabEditorDialog({this.laboratory});
+  const _LabEditorDialog({
+    this.laboratory,
+    this.technicians = const [],
+  });
 
   final LabRecord? laboratory;
+  final List<String> technicians;
 
   @override
   State<_LabEditorDialog> createState() => _LabEditorDialogState();
@@ -1320,8 +1925,19 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
   late final TextEditingController _notesController;
   late String? _technician;
   late LabAvailability _availability;
+  LatLng? _pickedLatLng;
 
-  static const _technicians = ['Carlos Mena', 'Sofía Viteri', 'David León'];
+  static const _defaultTechnicians = ['Carlos Mena', 'Sofía Viteri', 'David León'];
+
+  List<String> get _technicianList {
+    final list = List<String>.from(
+      widget.technicians.isNotEmpty ? widget.technicians : _defaultTechnicians,
+    );
+    if (_technician != null && !list.contains(_technician)) {
+      list.add(_technician!);
+    }
+    return list;
+  }
 
   @override
   void initState() {
@@ -1337,6 +1953,12 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
     _notesController = TextEditingController(text: laboratory?.notes ?? '');
     _technician = laboratory?.technician;
     _availability = laboratory?.availability ?? LabAvailability.activo;
+
+    if (laboratory != null &&
+        laboratory.latitude != null &&
+        laboratory.longitude != null) {
+      _pickedLatLng = LatLng(laboratory.latitude!, laboratory.longitude!);
+    }
   }
 
   @override
@@ -1348,9 +1970,28 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
     super.dispose();
   }
 
+  Future<void> _openMapPicker() async {
+    final result = await showLocationPickerModal(
+      context,
+      initialSelection: _pickedLatLng,
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _pickedLatLng = result;
+        _locationController.text =
+            'Campus ESPOCH (Lat: ${result.latitude.toStringAsFixed(4)}, Lng: ${result.longitude.toStringAsFixed(4)})';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.laboratory != null;
+    final techOptions = _technicianList;
+    if (_technician == null && techOptions.isNotEmpty) {
+      _technician = techOptions.first;
+    }
+
     return AlertDialog(
       title: Text(
         isEditing ? 'Modificar Laboratorio' : 'Registrar Laboratorio',
@@ -1362,6 +2003,7 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextFormField(
                   key: const Key('lab-name-field'),
@@ -1375,19 +2017,49 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
                     'Ingresa el nombre del laboratorio',
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('lab-location-field'),
                   controller: _locationController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Ubicación Física',
-                    hintText: 'Edificio FIE - Planta Alta, Aula 204',
-                    helperText: 'Edificio y referencia del espacio',
-                    prefixIcon: Icon(Icons.place_outlined),
+                    hintText: 'Edificio o selección en mapa',
+                    helperText: _pickedLatLng != null
+                        ? 'Coord OSM: ${_pickedLatLng!.latitude.toStringAsFixed(5)}, ${_pickedLatLng!.longitude.toStringAsFixed(5)}'
+                        : 'Edificio y referencia o punto en OpenStreetMap',
+                    prefixIcon: const Icon(Icons.place_outlined),
+                    suffixIcon: IconButton(
+                      key: const Key('open-osm-map-btn'),
+                      icon: const Icon(
+                        Icons.map_outlined,
+                        color: AppColors.fieBlue,
+                      ),
+                      tooltip: 'Ubicar en OpenStreetMap',
+                      onPressed: _openMapPicker,
+                    ),
                   ),
-                  validator: _requiredField('Ingresa la ubicación'),
+                  validator: _requiredField('Ingresa la ubicación física'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
+                OutlinedButton.icon(
+                  key: const Key('pick-location-osm-button'),
+                  onPressed: _openMapPicker,
+                  icon: const Icon(Icons.pin_drop_outlined, size: 18),
+                  label: Text(
+                    _pickedLatLng != null
+                        ? '📍 Cambiar ubicación en OpenStreetMap'
+                        : '🗺️ Ubicar en OpenStreetMap',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.fieBlue,
+                    side: const BorderSide(color: AppColors.fieBlue),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 9,
+                      horizontal: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('lab-capacity-field'),
                   controller: _capacityController,
@@ -1401,17 +2073,18 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
                     'Ingresa la capacidad del laboratorio',
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   key: const Key('lab-technician-field'),
                   initialValue: _technician,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Técnico Responsable',
-                    helperText: 'Encargado del laboratorio',
+                    helperText: 'Técnicos registrados en la base de datos',
+                    prefixIcon: Icon(Icons.engineering_outlined),
                   ),
                   items: [
-                    for (final technician in _technicians)
+                    for (final technician in techOptions)
                       DropdownMenuItem(
                         value: technician,
                         child: Text(technician),
@@ -1422,13 +2095,14 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
                       : null,
                   onChanged: (value) => setState(() => _technician = value),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<LabAvailability>(
                   key: const Key('lab-availability-field'),
                   initialValue: _availability,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Estado Inicial',
+                    prefixIcon: Icon(Icons.toggle_on_outlined),
                   ),
                   items: [
                     for (final status in LabAvailability.values)
@@ -1441,7 +2115,7 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
                     if (value != null) setState(() => _availability = value);
                   },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('lab-notes-field'),
                   controller: _notesController,
@@ -1463,6 +2137,10 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
         ),
       ),
       actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
         FilledButton(
           key: const Key('save-laboratory'),
           onPressed: _save,
@@ -1479,6 +2157,11 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
     if (!_formKey.currentState!.validate()) return;
     final id =
         widget.laboratory?.id ?? 'LAB-${DateTime.now().microsecondsSinceEpoch}';
+    final techOptions = _technicianList;
+    final chosenTech =
+        _technician ??
+        (techOptions.isNotEmpty ? techOptions.first : 'Carlos Mena');
+
     Navigator.pop(
       context,
       LabRecord(
@@ -1486,9 +2169,11 @@ class _LabEditorDialogState extends State<_LabEditorDialog> {
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
         capacity: _capacityController.text.trim(),
-        technician: _technician!,
+        technician: chosenTech,
         availability: _availability,
         notes: _notesController.text.trim(),
+        latitude: _pickedLatLng?.latitude,
+        longitude: _pickedLatLng?.longitude,
       ),
     );
   }
@@ -1534,14 +2219,22 @@ class _AddScheduleDialog extends StatefulWidget {
 }
 
 class _AddScheduleDialogState extends State<_AddScheduleDialog> {
-  final _timeController = TextEditingController();
+  static const List<String> _timeSlots = [
+    '07:00 - 09:00',
+    '09:00 - 11:00',
+    '11:00 - 13:00',
+    '15:00 - 17:00',
+    '17:00 - 19:00',
+    '19:00 - 21:00',
+  ];
+
+  String _time = '07:00 - 09:00';
   final _courseController = TextEditingController();
   final _teacherController = TextEditingController();
   String _day = 'Lunes';
 
   @override
   void dispose() {
-    _timeController.dispose();
     _courseController.dispose();
     _teacherController.dispose();
     super.dispose();
@@ -1573,13 +2266,19 @@ class _AddScheduleDialogState extends State<_AddScheduleDialog> {
               },
             ),
             const SizedBox(height: 10),
-            TextField(
+            DropdownButtonFormField<String>(
               key: const Key('schedule-time-field'),
-              controller: _timeController,
+              initialValue: _time,
               decoration: const InputDecoration(
                 labelText: 'Bloque horario',
-                hintText: '08:00 - 10:00',
               ),
+              items: [
+                for (final slot in _timeSlots)
+                  DropdownMenuItem(value: slot, child: Text(slot)),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _time = value);
+              },
             ),
             const SizedBox(height: 10),
             TextField(
@@ -1607,12 +2306,36 @@ class _AddScheduleDialogState extends State<_AddScheduleDialog> {
   }
 
   void _addBlock() {
-    final time = _timeController.text.trim();
+    final time = _time.trim();
     final course = _courseController.text.trim();
     final teacher = _teacherController.text.trim();
     if (time.isEmpty || course.isEmpty || teacher.isEmpty) return;
     Navigator.pop(context, _ScheduleBlock(_day, time, course, teacher));
   }
+}
+
+class _LiveMetrics {
+  const _LiveMetrics({
+    required this.incidentsCount,
+    required this.resolutionTime,
+    required this.worstLab,
+    required this.availability,
+    required this.hardwarePct,
+    required this.softwarePct,
+    required this.networkPct,
+    required this.infraPct,
+    required this.totalInPeriod,
+  });
+
+  final String incidentsCount;
+  final String resolutionTime;
+  final String worstLab;
+  final String availability;
+  final int hardwarePct;
+  final int softwarePct;
+  final int networkPct;
+  final int infraPct;
+  final int totalInPeriod;
 }
 
 class _PeriodMetrics {
@@ -1786,20 +2509,6 @@ class _LabStatusRow extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ManagedUser {
-  _ManagedUser({
-    required this.name,
-    required this.email,
-    required this.code,
-    required this.role,
-  });
-
-  final String name;
-  final String email;
-  final String code;
-  String role;
 }
 
 class _ScheduleBlock {

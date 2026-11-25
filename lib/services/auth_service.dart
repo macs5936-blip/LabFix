@@ -125,7 +125,9 @@ class AuthService {
           final credential = GoogleAuthProvider.credential(idToken: idToken);
           final userCredential = await _auth.signInWithCredential(credential);
           final user = userCredential.user;
-          if (user != null) await _ensureUserProfile(user);
+          if (user != null) {
+            await _ensureUserProfile(user, displayName: googleUser.displayName);
+          }
           return userCredential;
         }
       } catch (e) {
@@ -264,17 +266,94 @@ class AuthService {
 
   Future<void> _ensureUserProfile(User user, {String? displayName}) async {
     try {
-      final profile = _firestore.collection('users').doc(user.uid);
-      if ((await profile.get()).exists) return;
+      String? resolvedName = displayName?.trim();
+      if (resolvedName == null || resolvedName.isEmpty) {
+        if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+          resolvedName = user.displayName!.trim();
+        } else {
+          for (final profile in user.providerData) {
+            if (profile.displayName != null &&
+                profile.displayName!.trim().isNotEmpty) {
+              resolvedName = profile.displayName!.trim();
+              break;
+            }
+          }
+        }
+      }
 
-      await profile.set({
-        'uid': user.uid,
-        'displayName': displayName ?? user.displayName ?? '',
-        'email': user.email,
-        'role': 'student',
-        'rol': 'STUDENT',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // Si Firebase Auth aún no tenía displayName configurado pero lo obtuvimos del proveedor
+      if (resolvedName != null &&
+          resolvedName.isNotEmpty &&
+          (user.displayName == null || user.displayName!.trim().isEmpty)) {
+        try {
+          await user.updateDisplayName(resolvedName);
+        } catch (_) {}
+      }
+
+      String nombres = '';
+      String apellidos = '';
+      if (resolvedName != null && resolvedName.isNotEmpty) {
+        final parts = resolvedName
+            .split(RegExp(r'\s+'))
+            .where((s) => s.isNotEmpty)
+            .toList();
+        if (parts.length == 1) {
+          nombres = parts[0];
+        } else if (parts.length == 2) {
+          nombres = parts[0];
+          apellidos = parts[1];
+        } else if (parts.length > 2) {
+          final half = parts.length ~/ 2;
+          nombres = parts.take(half).join(' ');
+          apellidos = parts.skip(half).join(' ');
+        }
+      }
+
+      final profile = _firestore.collection('users').doc(user.uid);
+      final docSnap = await profile.get();
+
+      if (!docSnap.exists) {
+        await profile.set({
+          'uid': user.uid,
+          'nombres': nombres,
+          'apellidos': apellidos,
+          'displayName': (resolvedName != null && resolvedName.isNotEmpty)
+              ? resolvedName
+              : (user.email ?? ''),
+          'email': user.email ?? '',
+          'role': 'student',
+          'rol': 'STUDENT',
+          'fotoUrl': user.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        final data = docSnap.data() ?? {};
+        final existingNombres = (data['nombres'] as String?)?.trim() ?? '';
+        final existingApellidos = (data['apellidos'] as String?)?.trim() ?? '';
+        final existingDisplayName =
+            (data['displayName'] as String?)?.trim() ?? '';
+        final updates = <String, dynamic>{};
+
+        if (existingDisplayName.isEmpty &&
+            resolvedName != null &&
+            resolvedName.isNotEmpty) {
+          updates['displayName'] = resolvedName;
+        }
+        if (existingNombres.isEmpty && nombres.isNotEmpty) {
+          updates['nombres'] = nombres;
+        }
+        if (existingApellidos.isEmpty && apellidos.isNotEmpty) {
+          updates['apellidos'] = apellidos;
+        }
+        if (user.photoURL != null &&
+            data['fotoUrl'] == null &&
+            data['photoUrl'] == null) {
+          updates['fotoUrl'] = user.photoURL;
+        }
+        if (updates.isNotEmpty) {
+          await profile.update(updates);
+        }
+      }
     } catch (_) {
       // In tests without live Firestore
     }

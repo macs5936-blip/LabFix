@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../data/lab_model.dart';
 import '../models/user_model.dart';
 import '../models/report_model.dart';
 
@@ -187,5 +188,162 @@ class FirestoreService {
   /// Asigna o actualiza la lista de laboratorios de un técnico en Firestore.
   Future<void> assignLabsToTechnician(String uid, List<String> labs) async {
     await _usersRef.doc(uid).update({'assignedLabs': labs});
+  }
+
+  /// Retorna un Stream en tiempo real de todos los usuarios registrados en Firestore.
+  Stream<List<UserModel>> streamAllUsers() {
+    return _usersRef.snapshots().map((snapshot) {
+      final users = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final user = UserModel.fromMap(data, docId: doc.id);
+
+        // Auto-reparación en segundo plano para documentos creados antes de soportar nombres y apellidos
+        final hasNombres =
+            (data['nombres'] as String?)?.trim().isNotEmpty ?? false;
+        if (!hasNombres && user.nombres.isNotEmpty) {
+          _usersRef.doc(doc.id).update({
+            'nombres': user.nombres,
+            'apellidos': user.apellidos,
+          }).catchError((_) {});
+        }
+
+        return user;
+      }).toList();
+
+      users.sort((a, b) {
+        return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      });
+      return users;
+    });
+  }
+
+  /// Actualiza el rol de un usuario en Firestore ('student', 'technician', 'admin').
+  Future<void> updateUserRole(String uid, String newRole) async {
+    final clean = newRole.trim().toLowerCase();
+    final role = switch (clean) {
+      'admin' || 'administrador' || 'deanery' || 'decanato' => 'admin',
+      'technician' || 'tecnico' || 'técnico' || 'tech' => 'technician',
+      _ => 'student',
+    };
+    final rol = switch (role) {
+      'admin' => 'ADMIN',
+      'technician' => 'TECHNICIAN',
+      _ => 'STUDENT',
+    };
+
+    await _usersRef.doc(uid).update({
+      'rol': rol,
+      'role': role,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Vacía todos los documentos de las colecciones creadas (excepto la colección 'users').
+  /// Retorna un resumen con la cantidad de documentos eliminados por colección.
+  Future<Map<String, int>> clearAllCollectionsExceptUsers() async {
+    final deletedCounts = <String, int>{};
+    const collectionsToClear = [
+      'reports',
+      'laboratories',
+      'labs',
+      'notifications',
+      'schedules',
+      'assignments',
+      'resources',
+      'audit_logs',
+    ];
+
+    for (final col in collectionsToClear) {
+      try {
+        final snapshot = await _firestore.collection(col).get();
+        var count = 0;
+        for (final doc in snapshot.docs) {
+          if (col == 'reports') {
+            try {
+              final messages = await doc.reference.collection('messages').get();
+              for (final msg in messages.docs) {
+                await msg.reference.delete();
+              }
+            } catch (_) {}
+          }
+          await doc.reference.delete();
+          count++;
+        }
+        deletedCounts[col] = count;
+      } catch (e) {
+        deletedCounts[col] = 0;
+      }
+    }
+    return deletedCounts;
+  }
+
+  /// Guarda o actualiza un laboratorio en Firestore
+  Future<void> saveLaboratory(LabRecord lab) async {
+    final data = {
+      'id': lab.id,
+      'name': lab.name,
+      'location': lab.location,
+      'capacity': lab.capacity,
+      'technicianName': lab.technician,
+      'technician': lab.technician,
+      'availability': lab.availability.label,
+      'notes': lab.notes,
+      'latitude': lab.latitude,
+      'longitude': lab.longitude,
+      'active': lab.availability != LabAvailability.inactivo,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await _firestore.collection('laboratories').doc(lab.id).set(data, SetOptions(merge: true));
+    await _firestore.collection('labs').doc(lab.id).set(data, SetOptions(merge: true));
+  }
+
+  /// Elimina un laboratorio en Firestore tanto en 'laboratories' como en 'labs'
+  Future<void> deleteLaboratory(String labId, [String? labName]) async {
+    try {
+      await _firestore.collection('laboratories').doc(labId).delete();
+    } catch (_) {}
+    try {
+      await _firestore.collection('labs').doc(labId).delete();
+    } catch (_) {}
+
+    if (labName != null && labName.isNotEmpty) {
+      try {
+        final query1 = await _firestore.collection('laboratories').where('name', isEqualTo: labName).get();
+        for (final doc in query1.docs) {
+          await doc.reference.delete();
+        }
+        final query2 = await _firestore.collection('labs').where('name', isEqualTo: labName).get();
+        for (final doc in query2.docs) {
+          await doc.reference.delete();
+        }
+      } catch (_) {}
+    }
+  }
+
+  /// Retorna un Stream con los laboratorios guardados en Firestore
+  Stream<List<LabRecord>> streamLaboratories() {
+    return _firestore.collection('laboratories').snapshots().map((snapshot) {
+      if (snapshot.docs.isEmpty) return const <LabRecord>[];
+      return snapshot.docs.map((doc) {
+        final d = doc.data();
+        final rawAvail = (d['availability'] as String?)?.toLowerCase() ?? 'activo';
+        final avail = switch (rawAvail) {
+          'en mantenimiento' || 'mantenimiento' => LabAvailability.mantenimiento,
+          'fuera de servicio' || 'inactivo' => LabAvailability.inactivo,
+          _ => LabAvailability.activo,
+        };
+        return LabRecord(
+          id: doc.id,
+          name: d['name'] as String? ?? 'Laboratorio',
+          location: d['location'] as String? ?? '',
+          capacity: d['capacity']?.toString() ?? '',
+          technician: d['technicianName'] as String? ?? d['technician'] as String? ?? '',
+          availability: avail,
+          notes: d['notes'] as String? ?? '',
+          latitude: (d['latitude'] as num?)?.toDouble(),
+          longitude: (d['longitude'] as num?)?.toDouble(),
+        );
+      }).toList();
+    });
   }
 }

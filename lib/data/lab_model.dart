@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 enum LabAvailability { activo, mantenimiento, inactivo }
@@ -19,6 +21,8 @@ class LabRecord {
     required this.technician,
     required this.availability,
     required this.notes,
+    this.latitude,
+    this.longitude,
   });
 
   final String id;
@@ -28,11 +32,14 @@ class LabRecord {
   final String technician;
   final LabAvailability availability;
   final String notes;
+  final double? latitude;
+  final double? longitude;
 }
 
 abstract final class LabCatalog {
-  static final ValueNotifier<List<LabRecord>> labs = ValueNotifier([
-    const LabRecord(
+  /// Laboratorios precargados utilizados exclusivamente en pruebas automáticas offline
+  static const List<LabRecord> _offlineTestLabs = [
+    LabRecord(
       id: 'LAB-REDES',
       name: 'Lab. Redes y Telecomunicaciones',
       location: 'Edificio FIE - Planta Alta, Aula 204',
@@ -41,7 +48,7 @@ abstract final class LabCatalog {
       availability: LabAvailability.activo,
       notes: 'Rack de comunicaciones y cableado estructurado.',
     ),
-    const LabRecord(
+    LabRecord(
       id: 'LAB-SOFTWARE-1',
       name: 'Lab. Software #1',
       location: 'Edificio FIE - Planta Baja, Aula 103',
@@ -50,7 +57,7 @@ abstract final class LabCatalog {
       availability: LabAvailability.activo,
       notes: 'Estaciones para desarrollo y prácticas de software.',
     ),
-    const LabRecord(
+    LabRecord(
       id: 'LAB-MICRO',
       name: 'Lab. Microprocesadores',
       location: 'Edificio FIE - Planta Alta, Aula 212',
@@ -59,7 +66,7 @@ abstract final class LabCatalog {
       availability: LabAvailability.mantenimiento,
       notes: 'Revisión preventiva de fuentes y módulos de práctica.',
     ),
-    const LabRecord(
+    LabRecord(
       id: 'LAB-HARDWARE',
       name: 'Lab. Hardware',
       location: 'Edificio FIE - Planta Baja, Aula 108',
@@ -68,7 +75,7 @@ abstract final class LabCatalog {
       availability: LabAvailability.activo,
       notes: 'Herramientas de diagnóstico y reparación de equipos.',
     ),
-    const LabRecord(
+    LabRecord(
       id: 'LAB-ELECTRONICA',
       name: 'Lab. Electrónica',
       location: 'Edificio FIE - Planta Alta, Aula 218',
@@ -77,7 +84,36 @@ abstract final class LabCatalog {
       availability: LabAvailability.activo,
       notes: 'Instrumentación para prácticas de circuitos electrónicos.',
     ),
-  ]);
+  ];
+
+  static bool get isFirebaseConfigured {
+    try {
+      return Firebase.apps.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// En producción, inicia completamente vacío para mostrar únicamente los laboratorios
+  /// reales creados por el administrador en Firestore.
+  static final ValueNotifier<List<LabRecord>> labs = ValueNotifier(
+    isFirebaseConfigured ? const <LabRecord>[] : _offlineTestLabs,
+  );
+
+  static StreamSubscription<List<LabRecord>>? _subscription;
+
+  /// Vincula la lista de laboratorios en tiempo real con Firestore
+  static void syncWithStream(Stream<List<LabRecord>> stream) {
+    _subscription?.cancel();
+    _subscription = stream.listen((liveLabs) {
+      labs.value = List<LabRecord>.of(liveLabs);
+    });
+  }
+
+  static void dispose() {
+    _subscription?.cancel();
+    _subscription = null;
+  }
 
   static List<String> get names => [for (final lab in labs.value) lab.name];
 
@@ -90,5 +126,15 @@ abstract final class LabCatalog {
       updated[index] = lab;
     }
     labs.value = updated;
+  }
+
+  static void delete(String id) {
+    final updated = List<LabRecord>.of(labs.value);
+    updated.removeWhere((item) => item.id == id);
+    labs.value = updated;
+  }
+
+  static void setLabs(List<LabRecord> newLabs) {
+    labs.value = List<LabRecord>.of(newLabs);
   }
 }

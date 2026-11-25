@@ -576,10 +576,10 @@ void main() {
     expect(find.text('Redes I'), findsOneWidget);
     await tester.tap(find.byKey(const Key('add-schedule-block')));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('schedule-time-field')),
-      '16:00 - 18:00',
-    );
+    await tester.tap(find.byKey(const Key('schedule-time-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15:00 - 17:00').last);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('schedule-course-field')),
       'Laboratorio de Redes III',

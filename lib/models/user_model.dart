@@ -16,6 +16,7 @@ class UserModel {
     this.fotoUrl,
     this.createdAt,
     this.assignedLabs = const [],
+    this.customDisplayName,
   });
 
   final String uid;
@@ -32,10 +33,28 @@ class UserModel {
   /// Lista de nombres de laboratorios asignados al técnico.
   /// Vacía para roles que no son TECHNICIAN.
   final List<String> assignedLabs;
+  final String? customDisplayName;
 
   String get displayName {
     final full = '$nombres $apellidos'.trim();
-    return full.isNotEmpty ? full : email;
+    if (full.isNotEmpty) return full;
+    if (customDisplayName != null && customDisplayName!.trim().isNotEmpty) {
+      return customDisplayName!.trim();
+    }
+    // Si no hay nombres pero hay correo, intentar extraer un nombre legible del correo
+    if (email.isNotEmpty && email.contains('@')) {
+      final username = email.split('@').first;
+      final clean = username.replaceAll(RegExp(r'[0-9._-]+'), ' ').trim();
+      if (clean.length >= 3) {
+        final words = clean
+            .split(' ')
+            .where((w) => w.isNotEmpty)
+            .map((w) => w[0].toUpperCase() + (w.length > 1 ? w.substring(1) : ''))
+            .join(' ');
+        if (words.isNotEmpty) return words;
+      }
+    }
+    return email;
   }
 
   Map<String, dynamic> toMap() {
@@ -71,10 +90,37 @@ class UserModel {
         (map['role'] as String?)?.toUpperCase() ??
         'STUDENT';
 
+    String nombres = (map['nombres'] as String?)?.trim() ?? '';
+    String apellidos = (map['apellidos'] as String?)?.trim() ?? '';
+    final rawDisplayName = (map['displayName'] as String?)?.trim() ??
+        (map['name'] as String?)?.trim() ??
+        (map['nombreCompleto'] as String?)?.trim() ??
+        (map['nombre'] as String?)?.trim() ??
+        '';
+
+    // Para usuarios que inician sesión con Google o Microsoft, es común que Firestore
+    // contenga 'displayName' pero no 'nombres' ni 'apellidos'. Los descomponemos aquí:
+    if (nombres.isEmpty && apellidos.isEmpty && rawDisplayName.isNotEmpty) {
+      final parts = rawDisplayName
+          .split(RegExp(r'\s+'))
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (parts.length == 1) {
+        nombres = parts[0];
+      } else if (parts.length == 2) {
+        nombres = parts[0];
+        apellidos = parts[1];
+      } else if (parts.length > 2) {
+        final half = parts.length ~/ 2;
+        nombres = parts.take(half).join(' ');
+        apellidos = parts.skip(half).join(' ');
+      }
+    }
+
     return UserModel(
       uid: docId ?? (map['uid'] as String? ?? ''),
-      nombres: map['nombres'] as String? ?? '',
-      apellidos: map['apellidos'] as String? ?? '',
+      nombres: nombres,
+      apellidos: apellidos,
       email: map['email'] as String? ?? '',
       cedula: map['cedula'] as String? ?? '',
       codigoEstudiante: map['codigoEstudiante'] as String? ?? '',
@@ -87,6 +133,7 @@ class UserModel {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      customDisplayName: rawDisplayName.isNotEmpty ? rawDisplayName : null,
     );
   }
 
@@ -103,6 +150,7 @@ class UserModel {
     String? fotoUrl,
     DateTime? createdAt,
     List<String>? assignedLabs,
+    String? customDisplayName,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -117,6 +165,7 @@ class UserModel {
       fotoUrl: fotoUrl ?? this.fotoUrl,
       createdAt: createdAt ?? this.createdAt,
       assignedLabs: assignedLabs ?? this.assignedLabs,
+      customDisplayName: customDisplayName ?? this.customDisplayName,
     );
   }
 }

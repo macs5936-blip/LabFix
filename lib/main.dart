@@ -23,6 +23,9 @@ import 'presentation/screens/auth/register_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FirebaseConfig.initialize();
+  if (Firebase.apps.isNotEmpty) {
+    LabCatalog.syncWithStream(FirestoreService().streamLaboratories());
+  }
   runApp(const ReportesLabsApp());
 }
 

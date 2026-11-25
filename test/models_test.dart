@@ -53,6 +53,21 @@ void main() {
         expect(UserModel.fromMap(map).rol, role);
       }
     });
+
+    test('reconstructs Google/Microsoft user without explicit nombres/apellidos', () {
+      final googleUserMap = {
+        'uid': 'google_user_01',
+        'displayName': 'Miguel Cartagena',
+        'email': 'macs5936@gmail.com',
+        'rol': 'TECHNICIAN',
+      };
+      final user = UserModel.fromMap(googleUserMap, docId: 'google_user_01');
+      expect(user.displayName, 'Miguel Cartagena');
+      expect(user.nombres, 'Miguel');
+      expect(user.apellidos, 'Cartagena');
+      expect(user.email, 'macs5936@gmail.com');
+      expect(user.rol, 'TECHNICIAN');
+    });
   });
 
   group('ReportModel Serialization', () {
