@@ -279,42 +279,53 @@ class FirestoreService {
 
   /// Guarda o actualiza un laboratorio en Firestore
   Future<void> saveLaboratory(LabRecord lab) async {
+    final cleanName = lab.name.trim();
     final data = {
       'id': lab.id,
-      'name': lab.name,
-      'location': lab.location,
-      'capacity': lab.capacity,
-      'technicianName': lab.technician,
-      'technician': lab.technician,
+      'name': cleanName,
+      'location': lab.location.trim(),
+      'capacity': lab.capacity.trim(),
+      'technicianName': lab.technician.trim(),
+      'technician': lab.technician.trim(),
       'availability': lab.availability.label,
-      'notes': lab.notes,
+      'notes': lab.notes.trim(),
       'latitude': lab.latitude,
       'longitude': lab.longitude,
       'active': lab.availability != LabAvailability.inactivo,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    // Si ya existe otro documento con el mismo nombre y diferente ID, eliminamos el duplicado
+    try {
+      final existingDocs = await _firestore
+          .collection('laboratories')
+          .where('name', isEqualTo: cleanName)
+          .get();
+      for (final doc in existingDocs.docs) {
+        if (doc.id != lab.id) {
+          await doc.reference.delete();
+        }
+      }
+    } catch (_) {}
+
     await _firestore.collection('laboratories').doc(lab.id).set(data, SetOptions(merge: true));
-    await _firestore.collection('labs').doc(lab.id).set(data, SetOptions(merge: true));
   }
 
-  /// Elimina un laboratorio en Firestore tanto en 'laboratories' como en 'labs'
+  /// Elimina un laboratorio en Firestore de la colección 'laboratories'
   Future<void> deleteLaboratory(String labId, [String? labName]) async {
     try {
       await _firestore.collection('laboratories').doc(labId).delete();
     } catch (_) {}
-    try {
-      await _firestore.collection('labs').doc(labId).delete();
-    } catch (_) {}
 
-    if (labName != null && labName.isNotEmpty) {
+    if (labName != null && labName.trim().isNotEmpty) {
+      final target = labName.trim().toLowerCase();
       try {
-        final query1 = await _firestore.collection('laboratories').where('name', isEqualTo: labName).get();
-        for (final doc in query1.docs) {
-          await doc.reference.delete();
-        }
-        final query2 = await _firestore.collection('labs').where('name', isEqualTo: labName).get();
-        for (final doc in query2.docs) {
-          await doc.reference.delete();
+        final snap = await _firestore.collection('laboratories').get();
+        for (final doc in snap.docs) {
+          final n = (doc.data()['name'] as String?)?.trim().toLowerCase();
+          if (n == target || doc.id == labId) {
+            await doc.reference.delete();
+          }
         }
       } catch (_) {}
     }
@@ -324,17 +335,32 @@ class FirestoreService {
   Stream<List<LabRecord>> streamLaboratories() {
     return _firestore.collection('laboratories').snapshots().map((snapshot) {
       if (snapshot.docs.isEmpty) return const <LabRecord>[];
-      return snapshot.docs.map((doc) {
+      final seenNames = <String>{};
+      final list = <LabRecord>[];
+
+      for (final doc in snapshot.docs) {
         final d = doc.data();
+        final rawName = (d['name'] as String? ?? 'Laboratorio').trim();
+        if (rawName.isEmpty) continue;
+
+        // Evitar duplicados de laboratorios con el mismo nombre en la lista en tiempo real
+        final lower = rawName.toLowerCase();
+        if (seenNames.contains(lower)) {
+          // Limpiar documento duplicado de Firestore en segundo plano
+          doc.reference.delete().catchError((_) {});
+          continue;
+        }
+        seenNames.add(lower);
+
         final rawAvail = (d['availability'] as String?)?.toLowerCase() ?? 'activo';
         final avail = switch (rawAvail) {
           'en mantenimiento' || 'mantenimiento' => LabAvailability.mantenimiento,
           'fuera de servicio' || 'inactivo' => LabAvailability.inactivo,
           _ => LabAvailability.activo,
         };
-        return LabRecord(
+        list.add(LabRecord(
           id: doc.id,
-          name: d['name'] as String? ?? 'Laboratorio',
+          name: rawName,
           location: d['location'] as String? ?? '',
           capacity: d['capacity']?.toString() ?? '',
           technician: d['technicianName'] as String? ?? d['technician'] as String? ?? '',
@@ -342,8 +368,9 @@ class FirestoreService {
           notes: d['notes'] as String? ?? '',
           latitude: (d['latitude'] as num?)?.toDouble(),
           longitude: (d['longitude'] as num?)?.toDouble(),
-        );
-      }).toList();
+        ));
+      }
+      return list;
     });
   }
 }

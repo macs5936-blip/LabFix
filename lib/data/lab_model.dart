@@ -106,7 +106,7 @@ abstract final class LabCatalog {
   static void syncWithStream(Stream<List<LabRecord>> stream) {
     _subscription?.cancel();
     _subscription = stream.listen((liveLabs) {
-      labs.value = List<LabRecord>.of(liveLabs);
+      setLabs(liveLabs);
     });
   }
 
@@ -119,7 +119,10 @@ abstract final class LabCatalog {
 
   static void save(LabRecord lab) {
     final updated = List<LabRecord>.of(labs.value);
-    final index = updated.indexWhere((item) => item.id == lab.id);
+    final cleanName = lab.name.trim().toLowerCase();
+    final index = updated.indexWhere(
+      (item) => item.id == lab.id || item.name.trim().toLowerCase() == cleanName,
+    );
     if (index < 0) {
       updated.add(lab);
     } else {
@@ -128,13 +131,25 @@ abstract final class LabCatalog {
     labs.value = updated;
   }
 
-  static void delete(String id) {
+  static void delete(String id, [String? name]) {
     final updated = List<LabRecord>.of(labs.value);
-    updated.removeWhere((item) => item.id == id);
+    final cleanName = name?.trim().toLowerCase();
+    updated.removeWhere((item) =>
+        item.id == id ||
+        (cleanName != null &&
+            cleanName.isNotEmpty &&
+            item.name.trim().toLowerCase() == cleanName));
     labs.value = updated;
   }
 
   static void setLabs(List<LabRecord> newLabs) {
-    labs.value = List<LabRecord>.of(newLabs);
+    final unique = <String, LabRecord>{};
+    for (final lab in newLabs) {
+      final key = lab.name.trim().toLowerCase();
+      if (key.isNotEmpty) {
+        unique.putIfAbsent(key, () => lab);
+      }
+    }
+    labs.value = unique.values.toList();
   }
 }

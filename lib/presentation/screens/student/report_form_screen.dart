@@ -421,43 +421,65 @@ class _NewReportScreenState extends State<NewReportScreen> {
             const SizedBox(height: 9),
             ValueListenableBuilder<List<LabRecord>>(
               valueListenable: LabCatalog.labs,
-              builder: (context, laboratories, _) =>
-                  DropdownButtonFormField<String>(
-                    key: const Key('lab-dropdown'),
-                    initialValue: _laboratory,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Selecciona un laboratorio',
-                      prefixIcon: Icon(Icons.science_outlined),
-                    ),
-                    items: [
-                      for (final laboratory in laboratories)
-                        DropdownMenuItem(
-                          value: laboratory.name,
+              builder: (context, rawLaboratories, _) {
+                final uniqueLabs = <String, LabRecord>{};
+                for (final l in rawLaboratories) {
+                  final clean = l.name.trim();
+                  if (clean.isNotEmpty) {
+                    uniqueLabs.putIfAbsent(clean.toLowerCase(), () => l);
+                  }
+                }
+                final laboratories = uniqueLabs.values.toList();
+                final hasMatch = laboratories.any(
+                  (l) => l.name.trim().toLowerCase() == _laboratory?.trim().toLowerCase(),
+                );
+                final effectiveLab = hasMatch
+                    ? laboratories
+                        .firstWhere((l) =>
+                            l.name.trim().toLowerCase() ==
+                            _laboratory?.trim().toLowerCase())
+                        .name
+                    : null;
+
+                return DropdownButtonFormField<String>(
+                  key: const Key('lab-dropdown'),
+                  initialValue: effectiveLab,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Selecciona un laboratorio',
+                    prefixIcon: Icon(Icons.science_outlined),
+                  ),
+                  items: laboratories.isEmpty
+                      ? null
+                      : [
+                          for (final laboratory in laboratories)
+                            DropdownMenuItem(
+                              value: laboratory.name,
+                              child: Text(
+                                laboratory.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                  validator: (value) =>
+                      value == null ? 'Selecciona el laboratorio' : null,
+                  selectedItemBuilder: (context) => [
+                    for (final laboratory in laboratories)
+                      SizedBox(
+                        width: 150,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
                           child: Text(
                             laboratory.name,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                    ],
-                    validator: (value) =>
-                        value == null ? 'Selecciona el laboratorio' : null,
-                    selectedItemBuilder: (context) => [
-                      for (final laboratory in laboratories)
-                        SizedBox(
-                          width: 150,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              laboratory.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) => setState(() => _laboratory = value),
-                  ),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() => _laboratory = value),
+                );
+              },
             ),
             const SizedBox(height: 19),
 

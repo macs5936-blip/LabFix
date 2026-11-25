@@ -1001,49 +1001,68 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         const SizedBox(height: 14),
         ValueListenableBuilder<List<LabRecord>>(
           valueListenable: LabCatalog.labs,
-          builder: (context, laboratories, _) {
-            final hasMatch = laboratories.any((l) => l.name == _selectedLab);
-            final effectiveValue = hasMatch
-                ? _selectedLab
-                : (laboratories.isNotEmpty ? laboratories.first.name : null);
+          builder: (context, rawLaboratories, _) {
+            // Deduplicación estricta por nombre (en minúsculas y sin espacios) para evitar colisiones en DropdownButton
+            final uniqueMap = <String, LabRecord>{};
+            for (final lab in rawLaboratories) {
+              final clean = lab.name.trim();
+              if (clean.isNotEmpty) {
+                uniqueMap.putIfAbsent(clean.toLowerCase(), () => lab);
+              }
+            }
+            final laboratories = uniqueMap.values.toList();
 
-            return DropdownButtonFormField<String>(
-              key: const Key('schedule-lab-selector'),
-              initialValue: effectiveValue,
-              isExpanded: true,
-              hint: const Text('No hay laboratorios registrados'),
+            final matchingLab = laboratories.where(
+              (l) => l.name.trim().toLowerCase() == _selectedLab.trim().toLowerCase(),
+            ).firstOrNull;
+
+            final effectiveValue = matchingLab?.name ??
+                (laboratories.isNotEmpty ? laboratories.first.name : null);
+
+            return InputDecorator(
               decoration: const InputDecoration(
                 labelText: 'Laboratorio',
                 prefixIcon: Icon(Icons.science_outlined),
               ),
-              items: [
-                for (final lab in laboratories)
-                  DropdownMenuItem(
-                    value: lab.name,
-                    child: Text(
-                      lab.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              selectedItemBuilder: (context) => [
-                for (final lab in laboratories)
-                  SizedBox(
-                    width: 150,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        lab.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  key: const Key('schedule-lab-selector'),
+                  value: effectiveValue,
+                  isExpanded: true,
+                  isDense: true,
+                  hint: const Text('No hay laboratorios registrados'),
+                  items: laboratories.isEmpty
+                      ? null
+                      : [
+                          for (final lab in laboratories)
+                            DropdownMenuItem(
+                              value: lab.name,
+                              child: Text(
+                                lab.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                  selectedItemBuilder: (context) => [
+                    for (final lab in laboratories)
+                      SizedBox(
+                        width: 150,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            lab.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-              onChanged: (lab) {
-                if (lab != null) setState(() => _selectedLab = lab);
-              },
+                  ],
+                  onChanged: (lab) {
+                    if (lab != null) setState(() => _selectedLab = lab);
+                  },
+                ),
+              ),
             );
           },
         ),
@@ -1364,21 +1383,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     );
 
     if (confirmed == true && mounted) {
+      final labName = laboratory.name.trim();
+      final labId = laboratory.id;
+
       setState(() {
-        LabCatalog.delete(laboratory.id);
+        LabCatalog.delete(labId, labName);
+        _schedules.remove(labName);
         _schedules.remove(laboratory.name);
-        if (_selectedLab == laboratory.name) {
-          _selectedLab = LabCatalog.labs.value.isNotEmpty
-              ? LabCatalog.labs.value.first.name
-              : '';
+
+        final remaining = LabCatalog.labs.value;
+        if (_selectedLab.trim().toLowerCase() == labName.toLowerCase()) {
+          _selectedLab = remaining.isNotEmpty ? remaining.first.name : '';
         }
       });
 
       if (_isFirebaseReady) {
         try {
           await _firestoreService.deleteLaboratory(
-            laboratory.id,
-            laboratory.name,
+            labId,
+            labName,
           );
         } catch (e) {
           debugPrint('Aviso al eliminar laboratorio en Firestore: $e');

@@ -157,9 +157,6 @@ class TestDataSeeder {
       for (final lab in labsData) {
         final docRef = _firestore.collection('laboratories').doc(lab['id'] as String);
         batch.set(docRef, lab, SetOptions(merge: true));
-        // Colección espejo 'labs' para compatibilidad retroactiva
-        final mirrorRef = _firestore.collection('labs').doc(lab['id'] as String);
-        batch.set(mirrorRef, lab, SetOptions(merge: true));
       }
 
       // ======================================================================

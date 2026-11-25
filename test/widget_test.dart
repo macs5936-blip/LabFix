@@ -683,6 +683,16 @@ void main() {
       LabAvailability.mantenimiento,
     );
 
+    final deleteLabButton = find.byKey(const Key('delete-lab-LAB-MICRO'));
+    await tester.ensureVisible(deleteLabButton);
+    await tester.tap(deleteLabButton);
+    await tester.pumpAndSettle();
+    expect(find.text('¿Eliminar laboratorio?'), findsOneWidget);
+    await tester.tap(find.text('Eliminar'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'delete lab without assertion error');
+    expect(LabCatalog.labs.value.any((l) => l.id == 'LAB-MICRO'), isFalse);
+
     await tester.tap(find.byTooltip('Abrir menú de administración'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cerrar Sesión'));
